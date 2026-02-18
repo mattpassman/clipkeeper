@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "clipkeeper": "./src/cli.js"
+    "clipkeeper": "src/cli.js"
   },
   "scripts": {
     "test": "node --test test/**/*.test.js",
@@ -26,16 +26,16 @@
     "content-classification",
     "sqlite"
   ],
-  "author": "Your Name <your.email@example.com>",
+  "author": "Matt Passman",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/clipkeeper.git"
+    "url": "https://github.com/mattpassman/clipkeeper.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/clipkeeper/issues"
+    "url": "https://github.com/mattpassman/clipkeeper/issues"
   },
-  "homepage": "https://github.com/yourusername/clipkeeper#readme",
+  "homepage": "https://github.com/mattpassman/clipkeeper#readme",
   "engines": {
     "node": ">=18.0.0"
   },
