@@ -1,0 +1,36 @@
+{
+  "version": "1.0.0",
+  "embedding": {
+    "provider": "openai",
+    "model": "text-embedding-3-small",
+    "apiKey": null,
+    "endpoint": null,
+    "dimensions": null,
+    "batchSize": 10
+  },
+  "privacy": {
+    "enabled": true,
+    "patterns": [],
+    "excludeTypes": []
+  },
+  "retention": {
+    "days": 30,
+    "maxEntries": null
+  },
+  "monitoring": {
+    "pollInterval": 500,
+    "autoStart": false,
+    "enabled": true
+  },
+  "storage": {
+    "dataDir": null,
+    "dbPath": null,
+    "vectorPath": null,
+    "logPath": null
+  },
+  "search": {
+    "defaultLimit": 10,
+    "minScore": 0.7,
+    "cacheSize": 1000
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "name": "clipkeeper",
+  "version": "0.1.0",
+  "description": "Smart clipboard history manager with automatic content classification and privacy filtering",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "clipkeeper": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node --test test/**/*.test.js",
+    "test:watch": "node --test --watch test/**/*.test.js",
+    "start": "node src/cli.js start",
+    "dev": "node --watch src/cli.js",
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "keywords": [
+    "clipboard",
+    "clipboard-manager",
+    "clipboard-history",
+    "history",
+    "productivity",
+    "cli",
+    "cross-platform",
+    "privacy",
+    "content-classification",
+    "sqlite"
+  ],
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/clipkeeper.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/clipkeeper/issues"
+  },
+  "homepage": "https://github.com/yourusername/clipkeeper#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.0.0",
+    "clipboardy": "^3.0.0",
+    "commander": "^11.0.0"
+  },
+  "optionalDependencies": {
+    "chalk": "^5.0.0"
+  },
+  "devDependencies": {
+    "fast-check": "^3.0.0"
+  },
+  "files": [
+    "src/",
+    "config/",
+    "scripts/",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
+  ]
+}
