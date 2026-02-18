@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * ClipKeeper Background Service
+ * clipkeeper Background Service
  * 
  * This script runs as a detached background process to monitor clipboard changes.
  * It handles graceful shutdown on SIGTERM and SIGINT signals.
@@ -18,7 +18,7 @@ const logger = getLogger();
  * Main service function
  */
 async function main() {
-  logger.info('Service', 'ClipKeeper background service starting', {
+  logger.info('Service', 'clipkeeper background service starting', {
     pid: process.pid,
     nodeVersion: process.version,
     platform: process.platform

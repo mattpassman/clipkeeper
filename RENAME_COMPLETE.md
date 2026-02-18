@@ -9,7 +9,7 @@ Successfully renamed the package from "clipboardgpt" to "clipkeeper" across all 
 ### Package Files
 - ✅ `package.json` - Updated name, bin, repository URLs
 - ✅ `package-lock.json` - Will auto-update on next npm install
-- ✅ `LICENSE` - Updated copyright to "ClipKeeper Contributors"
+- ✅ `LICENSE` - Updated copyright to "clipkeeper Contributors"
 
 ### Documentation
 - ✅ `README.md` - All references updated

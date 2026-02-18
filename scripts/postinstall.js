@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 
 /**
- * Post-install script for ClipKeeper
+ * Post-install script for clipkeeper
  * Displays welcome message and setup instructions
  */
 
 console.log(`
 ╔════════════════════════════════════════════════════════════════╗
 ║                                                                ║
-║   📋 ClipKeeper installed successfully!                      ║
+║   📋 clipkeeper installed successfully!                      ║
 ║                                                                ║
 ║   A smart clipboard history manager with automatic            ║
 ║   content classification and privacy filtering.               ║
@@ -18,27 +18,27 @@ console.log(`
 🚀 Quick Start:
 
   1. Start the background service:
-     $ ClipKeeper start
+     $ clipkeeper start
 
   2. Copy some content to your clipboard
 
   3. View your clipboard history:
-     $ ClipKeeper list
+     $ clipkeeper list
 
   4. Filter by content type:
-     $ ClipKeeper list --type url
-     $ ClipKeeper list --type code
+     $ clipkeeper list --type url
+     $ clipkeeper list --type code
 
   5. Check service status:
-     $ ClipKeeper status
+     $ clipkeeper status
 
 📚 More Commands:
 
-  ClipKeeper stop              Stop the background service
-  ClipKeeper clear             Clear clipboard history
-  ClipKeeper config show       View all settings
-  ClipKeeper config set <key> <value>  Update settings
-  ClipKeeper --help            Show all commands
+  clipkeeper stop              Stop the background service
+  clipkeeper clear             Clear clipboard history
+  clipkeeper config show       View all settings
+  clipkeeper config set <key> <value>  Update settings
+  clipkeeper --help            Show all commands
 
 🔒 Privacy:
 
@@ -46,14 +46,15 @@ console.log(`
   (passwords, credit cards, API keys) is automatically filtered.
 
   Data location:
-  • Windows: %LOCALAPPDATA%\\ClipKeeper
-  • macOS:   ~/Library/Application Support/ClipKeeper
-  • Linux:   ~/.local/share/ClipKeeper
+  • Windows: %LOCALAPPDATA%\\clipkeeper
+  • macOS:   ~/Library/Application Support/clipkeeper
+  • Linux:   ~/.local/share/clipkeeper
 
-📖 Documentation: https://github.com/yourusername/ClipKeeper
+📖 Documentation: https://github.com/yourusername/clipkeeper
 
-💡 Tip: Run 'ClipKeeper config set retention.days 60' to keep
+💡 Tip: Run 'clipkeeper config set retention.days 60' to keep
    history for 60 days (default is 30 days).
 
 `);
+
 

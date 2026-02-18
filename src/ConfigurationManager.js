@@ -123,17 +123,17 @@ export class ConfigurationManager {
    * @param {object} config Configuration object to modify
    */
   _applyEnvironmentOverrides(config) {
-    // ClipKeeper_OPENAI_KEY
-    if (process.env.ClipKeeper_OPENAI_KEY) {
-      config.embedding.apiKey = process.env.ClipKeeper_OPENAI_KEY;
+    // clipkeeper_OPENAI_KEY
+    if (process.env.clipkeeper_OPENAI_KEY) {
+      config.embedding.apiKey = process.env.clipkeeper_OPENAI_KEY;
       if (config.embedding.provider === 'openai') {
         // Already set
       }
     }
 
-    // ClipKeeper_ANTHROPIC_KEY
-    if (process.env.ClipKeeper_ANTHROPIC_KEY) {
-      config.embedding.apiKey = process.env.ClipKeeper_ANTHROPIC_KEY;
+    // clipkeeper_ANTHROPIC_KEY
+    if (process.env.clipkeeper_ANTHROPIC_KEY) {
+      config.embedding.apiKey = process.env.clipkeeper_ANTHROPIC_KEY;
       if (config.embedding.provider === 'anthropic' || config.embedding.provider === 'voyage') {
         // Already set
       }

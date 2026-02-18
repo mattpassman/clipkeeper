@@ -1,6 +1,6 @@
-# Publishing Checklist for ClipKeeper
+# Publishing Checklist for clipkeeper
 
-This document contains the final steps to publish ClipKeeper to npm.
+This document contains the final steps to publish clipkeeper to npm.
 
 ## Pre-Publication Checklist
 
@@ -13,9 +13,9 @@ This document contains the final steps to publish ClipKeeper to npm.
 - [x] **CHANGELOG created** - Documented v0.1.0 features and limitations
 - [x] **Post-install script** - Created welcome message with quick start
 - [x] **Tests passing** - 242 out of 244 tests passing (2 skipped)
-- [x] **Global installation tested** - `npm link` works, `ClipKeeper` command functional
+- [x] **Global installation tested** - `npm link` works, `clipkeeper` command functional
 - [x] **.npmignore created** - Excludes test files and development artifacts
-- [x] **QUICKSTART updated** - Uses global `ClipKeeper` command
+- [x] **QUICKSTART updated** - Uses global `clipkeeper` command
 
 ### ⚠️ Before Publishing - Update These
 
@@ -28,12 +28,12 @@ This document contains the final steps to publish ClipKeeper to npm.
    ```json
    "repository": {
      "type": "git",
-     "url": "https://github.com/yourusername/ClipKeeper.git"
+     "url": "https://github.com/yourusername/clipkeeper.git"
    },
    "bugs": {
-     "url": "https://github.com/yourusername/ClipKeeper/issues"
+     "url": "https://github.com/yourusername/clipkeeper/issues"
    },
-   "homepage": "https://github.com/yourusername/ClipKeeper#readme"
+   "homepage": "https://github.com/yourusername/clipkeeper#readme"
    ```
 
 3. **README.md** - Update all GitHub URLs (search for `yourusername`)
@@ -47,7 +47,7 @@ This document contains the final steps to publish ClipKeeper to npm.
 Before publishing, check if the package name is available:
 
 ```bash
-npm search ClipKeeper
+npm search clipkeeper
 ```
 
 If the name is taken, consider alternatives:
@@ -66,27 +66,27 @@ Update `package.json` name field if needed.
 # Create a test tarball
 npm pack
 
-# This creates ClipKeeper-0.1.0.tgz
+# This creates clipkeeper-0.1.0.tgz
 # Install it globally to test
-npm install -g ./ClipKeeper-0.1.0.tgz
+npm install -g ./clipkeeper-0.1.0.tgz
 
 # Test the commands
-ClipKeeper --version
-ClipKeeper --help
-ClipKeeper start
-ClipKeeper status
-ClipKeeper list
-ClipKeeper stop
+clipkeeper --version
+clipkeeper --help
+clipkeeper start
+clipkeeper status
+clipkeeper list
+clipkeeper stop
 
 # Uninstall test version
-npm uninstall -g ClipKeeper
+npm uninstall -g clipkeeper
 ```
 
 ### 2. Verify Package Contents
 
 ```bash
 # Extract and inspect the tarball
-tar -tzf ClipKeeper-0.1.0.tgz
+tar -tzf clipkeeper-0.1.0.tgz
 
 # Verify it includes:
 # - src/ directory
@@ -167,10 +167,10 @@ npm publish --access public
 
 ```bash
 # Check on npm website
-open https://www.npmjs.com/package/ClipKeeper
+open https://www.npmjs.com/package/clipkeeper
 
 # Or install from npm
-npm install -g ClipKeeper
+npm install -g clipkeeper
 ```
 
 ## Post-Publication
@@ -198,7 +198,7 @@ See CHANGELOG.md for planned features in v0.2.0:
 
 ### Package Name Already Taken
 
-If `ClipKeeper` is taken:
+If `clipkeeper` is taken:
 1. Choose alternative name
 2. Update `package.json` name field
 3. Update all documentation references
@@ -266,9 +266,9 @@ npm test
 
 # 2. Create tarball and test
 npm pack
-npm install -g ./ClipKeeper-0.1.0.tgz
-ClipKeeper --version
-npm uninstall -g ClipKeeper
+npm install -g ./clipkeeper-0.1.0.tgz
+clipkeeper --version
+npm uninstall -g clipkeeper
 
 # 3. Commit and tag
 git add .
@@ -282,9 +282,9 @@ npm publish --dry-run
 npm publish
 
 # 5. Verify
-npm view ClipKeeper
-npm install -g ClipKeeper
-ClipKeeper --version
+npm view clipkeeper
+npm install -g clipkeeper
+clipkeeper --version
 ```
 
 ---

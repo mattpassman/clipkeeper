@@ -1,14 +1,14 @@
-# ClipKeeper
+# clipkeeper
 
 A smart clipboard history manager with automatic content classification and privacy filtering.
 
-[![npm version](https://img.shields.io/npm/v/ClipKeeper.svg)](https://www.npmjs.com/package/ClipKeeper)
+[![npm version](https://img.shields.io/npm/v/clipkeeper.svg)](https://www.npmjs.com/package/clipkeeper)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/node/v/ClipKeeper.svg)](https://nodejs.org)
+[![Node.js Version](https://img.shields.io/node/v/clipkeeper.svg)](https://nodejs.org)
 
 ## Overview
 
-ClipKeeper runs in the background and automatically captures everything you copy to your clipboard. It stores your clipboard history locally with intelligent content classification and privacy filtering, making it easy to find and reuse previously copied content.
+clipkeeper runs in the background and automatically captures everything you copy to your clipboard. It stores your clipboard history locally with intelligent content classification and privacy filtering, making it easy to find and reuse previously copied content.
 
 ## Features
 
@@ -29,7 +29,7 @@ ClipKeeper runs in the background and automatically captures everything you copy
 ## Installation
 
 ```bash
-npm install -g ClipKeeper
+npm install -g clipkeeper
 ```
 
 **Requirements:**
@@ -41,28 +41,28 @@ npm install -g ClipKeeper
 ### 1. Start the Background Service
 
 ```bash
-ClipKeeper start
+clipkeeper start
 ```
 
 The service will run in the background and monitor your clipboard automatically.
 
 ### 2. Copy Some Content
 
-Copy anything to your clipboard - text, code, URLs, etc. ClipKeeper captures it all!
+Copy anything to your clipboard - text, code, URLs, etc. clipkeeper captures it all!
 
 ### 3. View Your History
 
 ```bash
 # List last 10 entries
-ClipKeeper list
+clipkeeper list
 
 # List last 50 entries
-ClipKeeper list --limit 50
+clipkeeper list --limit 50
 
 # Filter by content type
-ClipKeeper list --type url
-ClipKeeper list --type code
-ClipKeeper list --type json
+clipkeeper list --type url
+clipkeeper list --type code
+clipkeeper list --type json
 ```
 
 Available content types: `text`, `code`, `url`, `json`, `xml`, `markdown`, `file_path`, `image`
@@ -70,7 +70,7 @@ Available content types: `text`, `code`, `url`, `json`, `xml`, `markdown`, `file
 ### 4. Check Service Status
 
 ```bash
-ClipKeeper status
+clipkeeper status
 ```
 
 Shows service status, uptime, total entries, and breakdown by content type.
@@ -78,7 +78,7 @@ Shows service status, uptime, total entries, and breakdown by content type.
 ### 5. Stop the Service
 
 ```bash
-ClipKeeper stop
+clipkeeper stop
 ```
 
 ## Commands
@@ -87,45 +87,45 @@ ClipKeeper stop
 
 | Command | Description |
 |---------|-------------|
-| `ClipKeeper start` | Start the background monitoring service |
-| `ClipKeeper stop` | Stop the background service |
-| `ClipKeeper status` | Check service status with statistics |
+| `clipkeeper start` | Start the background monitoring service |
+| `clipkeeper stop` | Stop the background service |
+| `clipkeeper status` | Check service status with statistics |
 
 ### Clipboard History
 
 | Command | Description |
 |---------|-------------|
-| `ClipKeeper list [options]` | List recent clipboard entries |
+| `clipkeeper list [options]` | List recent clipboard entries |
 | `  --limit <number>` | Number of entries to show (default: 10) |
 | `  --type <type>` | Filter by content type |
-| `ClipKeeper clear [--confirm]` | Clear all clipboard history |
+| `clipkeeper clear [--confirm]` | Clear all clipboard history |
 
 ### Configuration
 
 | Command | Description |
 |---------|-------------|
-| `ClipKeeper config show` | Display all configuration settings |
-| `ClipKeeper config get <key>` | Get a specific configuration value |
-| `ClipKeeper config set <key> <value>` | Set a configuration value |
+| `clipkeeper config show` | Display all configuration settings |
+| `clipkeeper config get <key>` | Get a specific configuration value |
+| `clipkeeper config set <key> <value>` | Set a configuration value |
 
 ## Configuration
 
-ClipKeeper stores configuration in:
-- **Windows:** `%APPDATA%\ClipKeeper\config.json`
-- **macOS:** `~/Library/Application Support/ClipKeeper/config.json`
-- **Linux:** `~/.config/ClipKeeper/config.json`
+clipkeeper stores configuration in:
+- **Windows:** `%APPDATA%\clipkeeper\config.json`
+- **macOS:** `~/Library/Application Support/clipkeeper/config.json`
+- **Linux:** `~/.config/clipkeeper/config.json`
 
 ### Common Settings
 
 ```bash
 # Set retention period (days)
-ClipKeeper config set retention.days 60
+clipkeeper config set retention.days 60
 
 # Adjust clipboard polling interval (milliseconds)
-ClipKeeper config set monitoring.pollInterval 500
+clipkeeper config set monitoring.pollInterval 500
 
 # Enable/disable privacy filtering
-ClipKeeper config set privacy.enabled true
+clipkeeper config set privacy.enabled true
 ```
 
 ### Configuration Keys
@@ -138,7 +138,7 @@ ClipKeeper config set privacy.enabled true
 
 ## Privacy & Security
 
-ClipKeeper is designed with privacy as a priority:
+clipkeeper is designed with privacy as a priority:
 
 - ✅ **All data stays local** - Nothing is sent to external services
 - ✅ **Automatic filtering** - Sensitive content is blocked by default:
@@ -153,14 +153,14 @@ ClipKeeper is designed with privacy as a priority:
 ### Data Storage Locations
 
 **Clipboard History:**
-- Windows: `%LOCALAPPDATA%\ClipKeeper\clipboard-history.db`
-- macOS: `~/Library/Application Support/ClipKeeper/clipboard-history.db`
-- Linux: `~/.local/share/ClipKeeper/clipboard-history.db`
+- Windows: `%LOCALAPPDATA%\clipkeeper\clipboard-history.db`
+- macOS: `~/Library/Application Support/clipkeeper/clipboard-history.db`
+- Linux: `~/.local/share/clipkeeper/clipboard-history.db`
 
 **Logs:**
-- Windows: `%APPDATA%\ClipKeeper\ClipKeeper.log`
-- macOS: `~/Library/Application Support/ClipKeeper/ClipKeeper.log`
-- Linux: `~/.local/share/ClipKeeper/ClipKeeper.log`
+- Windows: `%APPDATA%\clipkeeper\clipkeeper.log`
+- macOS: `~/Library/Application Support/clipkeeper/clipkeeper.log`
+- Linux: `~/.local/share/clipkeeper/clipkeeper.log`
 
 ## Examples
 
@@ -168,38 +168,38 @@ ClipKeeper is designed with privacy as a priority:
 
 ```bash
 # Start monitoring
-ClipKeeper start
+clipkeeper start
 
 # Copy some text, code, URLs...
-# (ClipKeeper captures everything automatically)
+# (clipkeeper captures everything automatically)
 
 # View your history
-ClipKeeper list
+clipkeeper list
 
 # View only URLs you've copied
-ClipKeeper list --type url --limit 20
+clipkeeper list --type url --limit 20
 
 # View only code snippets
-ClipKeeper list --type code
+clipkeeper list --type code
 
 # Clear old entries
-ClipKeeper clear
+clipkeeper clear
 
 # Stop when done
-ClipKeeper stop
+clipkeeper stop
 ```
 
 ### Configuration Examples
 
 ```bash
 # Keep history for 90 days
-ClipKeeper config set retention.days 90
+clipkeeper config set retention.days 90
 
 # Check current retention setting
-ClipKeeper config get retention.days
+clipkeeper config get retention.days
 
 # View all settings
-ClipKeeper config show
+clipkeeper config show
 ```
 
 ## Troubleshooting
@@ -208,19 +208,19 @@ ClipKeeper config show
 
 ```bash
 # Check if already running
-ClipKeeper status
+clipkeeper status
 
 # Check logs
-# Windows: %APPDATA%\ClipKeeper\ClipKeeper.log
-# macOS/Linux: ~/Library/Application Support/ClipKeeper/ClipKeeper.log
+# Windows: %APPDATA%\clipkeeper\clipkeeper.log
+# macOS/Linux: ~/Library/Application Support/clipkeeper/clipkeeper.log
 ```
 
 ### No entries showing up
 
-1. Make sure the service is running: `ClipKeeper status`
+1. Make sure the service is running: `clipkeeper status`
 2. Copy something to your clipboard
 3. Wait a moment (default poll interval is 500ms)
-4. Try `ClipKeeper list` again
+4. Try `clipkeeper list` again
 
 ### Permission errors
 
@@ -237,8 +237,8 @@ ClipKeeper status
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ClipKeeper.git
-cd ClipKeeper
+git clone https://github.com/yourusername/clipkeeper.git
+cd clipkeeper
 
 # Install dependencies
 npm install
@@ -263,7 +263,7 @@ Currently: **242 out of 244 tests passing** (2 skipped)
 
 ## Architecture
 
-ClipKeeper consists of several key components:
+clipkeeper consists of several key components:
 
 - **ClipboardMonitor** - Polls system clipboard for changes with retry logic
 - **HistoryStore** - SQLite database for clipboard entries with metadata
@@ -309,11 +309,12 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## Support
 
-- 📖 [Documentation](https://github.com/yourusername/ClipKeeper)
-- 🐛 [Issue Tracker](https://github.com/yourusername/ClipKeeper/issues)
-- 💬 [Discussions](https://github.com/yourusername/ClipKeeper/discussions)
+- 📖 [Documentation](https://github.com/yourusername/clipkeeper)
+- 🐛 [Issue Tracker](https://github.com/yourusername/clipkeeper/issues)
+- 💬 [Discussions](https://github.com/yourusername/clipkeeper/discussions)
 
 ---
 
-Made with ❤️ by the ClipKeeper team
+Made with ❤️ by the clipkeeper team
+
 

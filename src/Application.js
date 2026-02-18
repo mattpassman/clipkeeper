@@ -8,7 +8,7 @@ import { ContentClassifier } from './ContentClassifier.js';
 import { getLogger } from './Logger.js';
 
 /**
- * Application class - Main orchestrator for ClipKeeper
+ * Application class - Main orchestrator for clipkeeper
  * Wires together all components and manages the application lifecycle
  * 
  * Requirements: 11.2

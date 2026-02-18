@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * ClipKeeper CLI
+ * clipkeeper CLI
  * 
- * Command-line interface for ClipKeeper clipboard history manager.
+ * Command-line interface for clipkeeper clipboard history manager.
  * Provides commands for service management, search, and configuration.
  */
 
@@ -15,7 +15,7 @@ import fs from 'fs';
 import readline from 'readline';
 
 /**
- * CLI class for ClipKeeper
+ * CLI class for clipkeeper
  * 
  * Manages the command-line interface using commander.js.
  * Provides commands for:
@@ -80,7 +80,7 @@ For more information, visit: https://github.com/yourusername/clipkeeper
       .command('start')
       .description('Start the background clipboard monitoring service')
       .addHelpText('after', `
-The start command launches ClipKeeper as a background service that continuously
+The start command launches clipkeeper as a background service that continuously
 monitors your system clipboard. All clipboard changes will be captured, classified,
 and stored locally for easy retrieval.
 
@@ -94,7 +94,7 @@ The service will continue running until you stop it with 'clipkeeper stop'.
       .command('stop')
       .description('Stop the background monitoring service')
       .addHelpText('after', `
-The stop command gracefully terminates the ClipKeeper background service.
+The stop command gracefully terminates the clipkeeper background service.
 Clipboard monitoring will cease, but all stored history remains intact.
       `)
       .action(() => {
@@ -105,7 +105,7 @@ Clipboard monitoring will cease, but all stored history remains intact.
       .command('status')
       .description('Check the status of the background service')
       .addHelpText('after', `
-The status command reports whether the ClipKeeper service is currently running,
+The status command reports whether the clipkeeper service is currently running,
 along with uptime information, total entries stored, and last activity timestamp.
       `)
       .action(() => {
@@ -127,9 +127,9 @@ based on your natural language query. You can search for concepts, not just
 exact text matches.
 
 Examples:
-  $ ClipKeeper search "that API key from yesterday"
-  $ ClipKeeper search "error message about database"
-  $ ClipKeeper search "code snippet for authentication"
+  $ clipkeeper search "that API key from yesterday"
+  $ clipkeeper search "error message about database"
+  $ clipkeeper search "code snippet for authentication"
       `)
       .action((query) => {
         this.handleSearch(query);
@@ -147,10 +147,10 @@ showing timestamps, content types, and previews of each entry.
 Content types: text, code, url, image, file_path, json, xml, markdown
 
 Examples:
-  $ ClipKeeper list
-  $ ClipKeeper list --limit 50
-  $ ClipKeeper list --type code
-  $ ClipKeeper list --type url --limit 20
+  $ clipkeeper list
+  $ clipkeeper list --limit 50
+  $ clipkeeper list --type code
+  $ clipkeeper list --type url --limit 20
       `)
       .action((options) => {
         this.handleList(options);
@@ -167,8 +167,8 @@ embeddings. This action cannot be undone.
 By default, you will be prompted to confirm. Use --confirm to skip the prompt.
 
 Examples:
-  $ ClipKeeper clear
-  $ ClipKeeper clear --confirm
+  $ clipkeeper clear
+  $ clipkeeper clear --confirm
       `)
       .action((options) => {
         this.handleClear(options);
@@ -181,9 +181,9 @@ Examples:
   setupConfigCommands() {
     const config = this.program
       .command('config')
-      .description('Manage ClipKeeper configuration settings')
+      .description('Manage clipkeeper configuration settings')
       .addHelpText('after', `
-The config command allows you to view and modify ClipKeeper settings,
+The config command allows you to view and modify clipkeeper settings,
 including privacy filters and retention policies.
 
 Configuration is stored in:
@@ -257,13 +257,13 @@ Examples:
     try {
       await this.initialize();
       
-      console.log('Starting ClipKeeper service...');
+      console.log('Starting clipkeeper service...');
       const result = this.serviceManager.start();
       
       if (result.success) {
         console.log(`✓ ${result.message}`);
         console.log('\nThe service is now running in the background.');
-        console.log('Use "ClipKeeper stop" to stop the service.');
+        console.log('Use "clipkeeper stop" to stop the service.');
       } else {
         console.error(`✗ ${result.message}`);
         process.exit(1);
@@ -278,7 +278,7 @@ Examples:
     try {
       await this.initialize();
       
-      console.log('Stopping ClipKeeper service...');
+      console.log('Stopping clipkeeper service...');
       const result = this.serviceManager.stop();
       
       if (result.success) {
@@ -303,7 +303,7 @@ Examples:
       
       const status = this.serviceManager.getStatus();
       
-      console.log('\nClipKeeper Service Status:');
+      console.log('\nclipkeeper Service Status:');
       console.log('═'.repeat(60));
       
       if (status.running) {
@@ -734,7 +734,7 @@ Examples:
 
       const config = this.configManager.getAll();
       
-      console.log('\nClipKeeper Configuration:');
+      console.log('\nclipkeeper Configuration:');
       console.log('═'.repeat(60));
       
       this._displayConfigSection('Embedding', config.embedding);

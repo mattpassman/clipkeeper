@@ -1,9 +1,9 @@
-# ClipKeeper - Quick Start Guide
+# clipkeeper - Quick Start Guide
 
 ## Installation
 
 ```bash
-npm install -g ClipKeeper
+npm install -g clipkeeper
 ```
 
 ## Usage
@@ -11,11 +11,11 @@ npm install -g ClipKeeper
 ### 1. Start the Background Service
 
 ```bash
-ClipKeeper start
+clipkeeper start
 ```
 
 This will:
-- Launch ClipKeeper as a background process
+- Launch clipkeeper as a background process
 - Begin monitoring your clipboard automatically
 - Store all clipboard changes locally in SQLite
 - Filter out sensitive content (passwords, credit cards, API keys, etc.)
@@ -24,7 +24,7 @@ This will:
 ### 2. Check Service Status
 
 ```bash
-ClipKeeper status
+clipkeeper status
 ```
 
 Shows whether the service is running, uptime, entry count, and breakdown by content type.
@@ -33,16 +33,16 @@ Shows whether the service is running, uptime, entry count, and breakdown by cont
 
 ```bash
 # List last 10 entries
-ClipKeeper list
+clipkeeper list
 
 # List last 50 entries
-ClipKeeper list --limit 50
+clipkeeper list --limit 50
 
 # List only code entries
-ClipKeeper list --type code
+clipkeeper list --type code
 
 # List only URLs
-ClipKeeper list --type url
+clipkeeper list --type url
 ```
 
 Available content types: `text`, `code`, `url`, `json`, `xml`, `markdown`, `file_path`, `image`
@@ -51,16 +51,16 @@ Available content types: `text`, `code`, `url`, `json`, `xml`, `markdown`, `file
 
 ```bash
 # Clear with confirmation prompt
-ClipKeeper clear
+clipkeeper clear
 
 # Clear without confirmation
-ClipKeeper clear --confirm
+clipkeeper clear --confirm
 ```
 
 ### 5. Stop the Service
 
 ```bash
-ClipKeeper stop
+clipkeeper stop
 ```
 
 ## Configuration
@@ -69,23 +69,23 @@ ClipKeeper stop
 
 ```bash
 # Show all settings
-ClipKeeper config show
+clipkeeper config show
 
 # Get specific setting
-ClipKeeper config get retention.days
+clipkeeper config get retention.days
 ```
 
 ### Update Settings
 
 ```bash
 # Set retention period (days)
-ClipKeeper config set retention.days 60
+clipkeeper config set retention.days 60
 
 # Adjust polling interval (milliseconds)
-ClipKeeper config set monitoring.pollInterval 500
+clipkeeper config set monitoring.pollInterval 500
 
 # Enable/disable privacy filtering
-ClipKeeper config set privacy.enabled true
+clipkeeper config set privacy.enabled true
 ```
 
 ## What's Working
@@ -110,14 +110,14 @@ ClipKeeper config set privacy.enabled true
 ## Data Storage
 
 Your clipboard history is stored in:
-- **Windows**: `%LOCALAPPDATA%\ClipKeeper\clipboard-history.db`
-- **macOS**: `~/Library/Application Support/ClipKeeper/clipboard-history.db`
-- **Linux**: `~/.local/share/ClipKeeper/clipboard-history.db`
+- **Windows**: `%LOCALAPPDATA%\clipkeeper\clipboard-history.db`
+- **macOS**: `~/Library/Application Support/clipkeeper/clipboard-history.db`
+- **Linux**: `~/.local/share/clipkeeper/clipboard-history.db`
 
 Logs are stored in:
-- **Windows**: `%APPDATA%\ClipKeeper\ClipKeeper.log`
-- **macOS**: `~/Library/Application Support/ClipKeeper/ClipKeeper.log`
-- **Linux**: `~/.local/share/ClipKeeper/ClipKeeper.log`
+- **Windows**: `%APPDATA%\clipkeeper\clipkeeper.log`
+- **macOS**: `~/Library/Application Support/clipkeeper/clipkeeper.log`
+- **Linux**: `~/.local/share/clipkeeper/clipkeeper.log`
 
 ## Privacy
 
