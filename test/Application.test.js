@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-describe('Application', () => {
+describe('Application', { concurrency: 1 }, () => {
   let app;
   let testDataDir;
 
@@ -97,6 +97,9 @@ describe('Application', () => {
       assert.ok(app.clipboardMonitor, 'ClipboardMonitor should be initialized');
       assert.ok(app.privacyFilter, 'PrivacyFilter should be initialized');
       assert.ok(app.contentClassifier, 'ContentClassifier should be initialized');
+      assert.ok(app.retentionService, 'RetentionService should be initialized');
+      assert.ok(app.searchService, 'SearchService should be initialized');
+      assert.ok(app.clipboardService, 'ClipboardService should be initialized');
     });
 
     it('should use platform-appropriate data directory', async () => {
@@ -299,6 +302,9 @@ describe('Application', () => {
       assert.strictEqual(status.components.clipboardMonitor, true);
       assert.strictEqual(status.components.privacyFilter, true);
       assert.strictEqual(status.components.contentClassifier, true);
+      assert.strictEqual(status.components.retentionService, true);
+      assert.strictEqual(status.components.searchService, true);
+      assert.strictEqual(status.components.clipboardService, true);
     });
 
     it('should return correct status when running', async () => {
@@ -311,6 +317,93 @@ describe('Application', () => {
       assert.ok(status.config.dataDir);
       assert.strictEqual(status.config.pollInterval, 500);
       assert.strictEqual(status.config.privacyEnabled, true);
+    });
+  });
+
+  describe('service integration', () => {
+    it('should start RetentionService when application starts', async () => {
+      await app.initialize();
+      
+      // Verify RetentionService is initialized but not started
+      assert.ok(app.retentionService, 'RetentionService should be initialized');
+      assert.strictEqual(app.retentionService.cleanupInterval, null, 'Cleanup interval should not be set before start');
+      
+      app.start();
+      
+      // Verify RetentionService is started
+      assert.ok(app.retentionService.cleanupInterval, 'Cleanup interval should be set after start');
+      
+      app.stop();
+    });
+
+    it('should stop RetentionService when application stops', async () => {
+      await app.initialize();
+      app.start();
+      
+      // Verify RetentionService is running
+      assert.ok(app.retentionService.cleanupInterval, 'Cleanup interval should be set');
+      
+      app.stop();
+      
+      // Verify RetentionService is stopped
+      assert.strictEqual(app.retentionService.cleanupInterval, null, 'Cleanup interval should be cleared after stop');
+    });
+
+    it('should have SearchService available for CLI', async () => {
+      await app.initialize();
+      
+      assert.ok(app.searchService, 'SearchService should be available');
+      assert.strictEqual(typeof app.searchService.search, 'function', 'SearchService should have search method');
+    });
+
+    it('should have ClipboardService available for CLI', async () => {
+      await app.initialize();
+      
+      assert.ok(app.clipboardService, 'ClipboardService should be available');
+      assert.strictEqual(typeof app.clipboardService.copy, 'function', 'ClipboardService should have copy method');
+      assert.strictEqual(typeof app.clipboardService.read, 'function', 'ClipboardService should have read method');
+    });
+
+    it('should perform retention cleanup in background', async () => {
+      await app.initialize();
+      
+      // Add some old entries - use 40 days to be well past the 30-day retention cutoff
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 30);
+      const oldTimestamp = cutoffDate.getTime() - (10 * 24 * 60 * 60 * 1000); // 10 days before cutoff
+      app.historyStore.save({
+        content: 'Old entry',
+        contentType: 'text',
+        timestamp: oldTimestamp,
+        sourceApp: null,
+        metadata: {}
+      });
+      
+      // Add a recent entry
+      app.historyStore.save({
+        content: 'Recent entry',
+        contentType: 'text',
+        timestamp: Date.now(),
+        sourceApp: null,
+        metadata: {}
+      });
+      
+      // Verify both entries exist
+      let allEntries = app.historyStore.getRecent(10);
+      assert.strictEqual(allEntries.length, 2, 'Should have 2 entries before cleanup');
+      
+      // Start application (which starts RetentionService and runs initial cleanup)
+      app.start();
+      
+      // Wait a bit for cleanup to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Verify old entry was deleted
+      allEntries = app.historyStore.getRecent(10);
+      assert.strictEqual(allEntries.length, 1, 'Should have 1 entry after cleanup');
+      assert.strictEqual(allEntries[0].content, 'Recent entry', 'Recent entry should remain');
+      
+      app.stop();
     });
   });
 });

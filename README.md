@@ -12,19 +12,22 @@ clipkeeper runs in the background and automatically captures everything you copy
 
 ## Features
 
-✅ **Currently Available:**
-- 📋 **Background Monitoring** - Automatically captures all clipboard activity
-- 🗂️ **Local Storage** - All data stored in SQLite on your machine
-- 🏷️ **Content Classification** - Automatically detects content types (text, code, URLs, JSON, XML, markdown, etc.)
-- 🔒 **Privacy Filtering** - Automatically blocks passwords, credit cards, API keys, SSH keys
-- 🔍 **List & Filter** - View history with filtering by content type
-- ⚙️ **Configuration** - Customize retention period, poll interval, and privacy settings
-- 🖥️ **Cross-Platform** - Works on Windows, macOS, and Linux
+**Currently Available:**
+- **Background Monitoring** - Automatically captures all clipboard activity
+- **Local Storage** - All data stored in SQLite on your machine
+- **Content Classification** - Automatically detects content types (text, code, URLs, JSON, XML, markdown, etc.)
+- **Privacy Filtering** - Automatically blocks passwords, credit cards, API keys, SSH keys
+- **Text Search** - Search clipboard history with keywords and filters
+- **Copy History** - Copy previous clipboard entries back to clipboard
+- **Auto Retention** - Automatically clean up old entries based on retention policy
+- **List & Filter** - View history with filtering by content type, date, and text
+- **Configuration** - Customize retention period, poll interval, and privacy settings
+- **Cross-Platform** - Works on Windows, macOS, and Linux
 
-🚧 **Planned Features:**
-- 🔮 Semantic search with natural language queries
-- 🤖 LLM embedding integration (OpenAI, Anthropic, Ollama)
-- 🎯 Vector similarity search
+**Planned Features:**
+- Semantic search with natural language queries
+- LLM embedding integration (OpenAI, Anthropic, Ollama)
+- Vector similarity search
 
 ## Installation
 
@@ -63,11 +66,30 @@ clipkeeper list --limit 50
 clipkeeper list --type url
 clipkeeper list --type code
 clipkeeper list --type json
+
+# Search clipboard history
+clipkeeper search "error message"
+clipkeeper search "function" --type code
+clipkeeper search "https" --limit 20
+
+# Filter by date
+clipkeeper list --since 2024-01-01
+clipkeeper list --since yesterday
 ```
 
 Available content types: `text`, `code`, `url`, `json`, `xml`, `markdown`, `file_path`, `image`
 
-### 4. Check Service Status
+### 4. Copy Previous Entries
+
+```bash
+# List entries with IDs
+clipkeeper list
+
+# Copy an entry back to clipboard by ID
+clipkeeper copy <entry-id>
+```
+
+### 5. Check Service Status
 
 ```bash
 clipkeeper status
@@ -75,7 +97,7 @@ clipkeeper status
 
 Shows service status, uptime, total entries, and breakdown by content type.
 
-### 5. Stop the Service
+### 6. Stop the Service
 
 ```bash
 clipkeeper stop
@@ -98,6 +120,14 @@ clipkeeper stop
 | `clipkeeper list [options]` | List recent clipboard entries |
 | `  --limit <number>` | Number of entries to show (default: 10) |
 | `  --type <type>` | Filter by content type |
+| `  --search <text>` | Filter by text content |
+| `  --since <date>` | Show entries after date (YYYY-MM-DD, "yesterday", "today") |
+| `  --format <format>` | Output format: table, json, csv (default: table) |
+| `clipkeeper search <query> [options]` | Search clipboard history by text |
+| `  --limit <number>` | Maximum results (default: 10) |
+| `  --type <type>` | Filter by content type |
+| `  --since <date>` | Only entries after date |
+| `clipkeeper copy <id>` | Copy a clipboard entry back to clipboard |
 | `clipkeeper clear [--confirm]` | Clear all clipboard history |
 
 ### Configuration
@@ -136,19 +166,21 @@ clipkeeper config set privacy.enabled true
 | `monitoring.pollInterval` | Clipboard check interval (ms) | 500 |
 | `privacy.enabled` | Enable privacy filtering | true |
 
+Retention cleanup runs automatically every hour when the service is running.
+
 ## Privacy & Security
 
 clipkeeper is designed with privacy as a priority:
 
-- ✅ **All data stays local** - Nothing is sent to external services
-- ✅ **Automatic filtering** - Sensitive content is blocked by default:
+- **All data stays local** - Nothing is sent to external services
+- **Automatic filtering** - Sensitive content is blocked by default:
   - Passwords (8+ chars with mixed case, numbers, symbols)
   - Credit card numbers (validated with Luhn algorithm)
   - API keys (Bearer tokens, sk-* keys)
   - Private keys (PEM format)
   - SSH keys (RSA, Ed25519)
-- ✅ **Secure storage** - Config files have restricted permissions
-- ✅ **Configurable** - Customize privacy settings and add custom patterns
+- **Secure storage** - Config files have restricted permissions
+- **Configurable** - Customize privacy settings and add custom patterns
 
 ### Data Storage Locations
 
@@ -176,17 +208,44 @@ clipkeeper start
 # View your history
 clipkeeper list
 
+# Search for specific content
+clipkeeper search "error"
+clipkeeper search "function" --type code
+
+# Copy a previous entry back to clipboard
+clipkeeper list  # Note the entry ID
+clipkeeper copy abc123
+
 # View only URLs you've copied
 clipkeeper list --type url --limit 20
 
-# View only code snippets
-clipkeeper list --type code
+# View entries from the last week
+clipkeeper list --since "7 days ago"
+
+# Export history as JSON
+clipkeeper list --format json > history.json
 
 # Clear old entries
 clipkeeper clear
 
 # Stop when done
 clipkeeper stop
+```
+
+### Search Examples
+
+```bash
+# Simple text search
+clipkeeper search "password reset"
+
+# Search with type filter
+clipkeeper search "import" --type code
+
+# Search with date filter
+clipkeeper search "meeting" --since yesterday
+
+# Search with result limit
+clipkeeper search "http" --limit 5
 ```
 
 ### Configuration Examples
@@ -275,17 +334,26 @@ clipkeeper consists of several key components:
 
 ## Roadmap
 
-### v0.2.0 (Planned)
-- 🔮 Semantic search with natural language queries
-- 🤖 LLM embedding integration (OpenAI, Anthropic, Ollama)
-- 🎯 Vector similarity search
-- 📊 Usage statistics and analytics
+### v0.2.0 (Current Release)
+- Text-based search with keyword matching
+- Copy historical entries back to clipboard
+- Automated retention cleanup
+- Enhanced list command with multiple output formats
+- Full-text search with FTS5 (with LIKE fallback)
+- Date filtering for search and list commands
+- Improved error messages
 
 ### v0.3.0 (Planned)
-- 🔄 Sync across devices (optional)
-- 🎨 GUI application
-- 🔌 Plugin system
-- 📱 Mobile companion app
+- Semantic search with natural language queries
+- LLM embedding integration (OpenAI, Anthropic, Ollama)
+- Vector similarity search
+- Usage statistics and analytics
+
+### v0.4.0 (Planned)
+- Sync across devices (optional)
+- GUI application
+- Plugin system
+- Mobile companion app
 
 ## Contributing
 
@@ -309,12 +377,12 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## Support
 
-- 📖 [Documentation](https://github.com/yourusername/clipkeeper)
-- 🐛 [Issue Tracker](https://github.com/yourusername/clipkeeper/issues)
-- 💬 [Discussions](https://github.com/yourusername/clipkeeper/discussions)
+- [Documentation](https://github.com/yourusername/clipkeeper)
+- [Issue Tracker](https://github.com/yourusername/clipkeeper/issues)
+- [Discussions](https://github.com/yourusername/clipkeeper/discussions)
 
 ---
 
-Made with ❤️ by the clipkeeper team
+Made with love by the clipkeeper team
 
 

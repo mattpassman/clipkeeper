@@ -10,6 +10,7 @@
 import { Command } from 'commander';
 import { ConfigurationManager } from './ConfigurationManager.js';
 import { ServiceManager } from './ServiceManager.js';
+import ErrorMessages from './ErrorMessages.js';
 import path from 'path';
 import fs from 'fs';
 import readline from 'readline';
@@ -50,7 +51,7 @@ class CLI {
     this.program
       .name('clipkeeper')
       .description('Smart clipboard history manager with automatic content classification and privacy filtering')
-      .version('0.1.0')
+      .version('0.2.0')
       .addHelpText('after', `
 Examples:
   $ clipkeeper start                    Start the background monitoring service
@@ -119,20 +120,27 @@ along with uptime information, total entries stored, and last activity timestamp
   setupHistoryCommands() {
     this.program
       .command('search')
-      .description('Search clipboard history using natural language')
-      .argument('<query>', 'Natural language search query')
+      .description('Search clipboard history by text')
+      .argument('<query>', 'Search query (keywords)')
+      .option('-l, --limit <number>', 'Maximum number of results', '10')
+      .option('-t, --type <type>', 'Filter by content type (text, code, url, etc.)')
+      .option('--since <date>', 'Only entries after date (YYYY-MM-DD, "yesterday", "today", "7 days ago")')
+      .option('--no-interactive', 'Disable interactive mode - show table instead')
       .addHelpText('after', `
-The search command uses semantic embeddings to find relevant clipboard entries
-based on your natural language query. You can search for concepts, not just
-exact text matches.
+The search command finds clipboard entries containing your search keywords
+and lets you select one to copy using arrow keys (interactive mode is default).
+
+Search is case-insensitive and supports multiple keywords (AND logic).
 
 Examples:
-  $ clipkeeper search "that API key from yesterday"
-  $ clipkeeper search "error message about database"
-  $ clipkeeper search "code snippet for authentication"
+  $ clipkeeper search "error message"           # Interactive selection (default)
+  $ clipkeeper search "API key" --limit 20      # Show more results
+  $ clipkeeper search "function" --type code    # Filter by type
+  $ clipkeeper search "https" --since yesterday # Recent entries only
+  $ clipkeeper search "config" --no-interactive # Show table with IDs instead
       `)
-      .action((query) => {
-        this.handleSearch(query);
+      .action((query, options) => {
+        this.handleSearch(query, options);
       });
 
     this.program
@@ -140,20 +148,47 @@ Examples:
       .description('List recent clipboard entries')
       .option('-l, --limit <number>', 'Maximum number of entries to display', '10')
       .option('-t, --type <type>', 'Filter by content type (text, code, url, image, etc.)')
+      .option('-s, --search <text>', 'Filter by text search')
+      .option('--since <date>', 'Only entries after date (YYYY-MM-DD, "yesterday", "today", "7 days ago")')
+      .option('-f, --format <format>', 'Output format: table, json, csv', 'table')
+      .option('--no-interactive', 'Disable interactive mode - show table instead')
       .addHelpText('after', `
-The list command displays your recent clipboard history in a table format,
-showing timestamps, content types, and previews of each entry.
+The list command displays your recent clipboard history and lets you select
+an entry to copy using arrow keys (interactive mode is default).
 
 Content types: text, code, url, image, file_path, json, xml, markdown
+Output formats: table (default), json, csv
 
 Examples:
-  $ clipkeeper list
-  $ clipkeeper list --limit 50
-  $ clipkeeper list --type code
-  $ clipkeeper list --type url --limit 20
+  $ clipkeeper list                           # Interactive selection (default)
+  $ clipkeeper list --limit 50                # Show more entries
+  $ clipkeeper list --type code               # Filter by type
+  $ clipkeeper list --search "error"          # Filter by text
+  $ clipkeeper list --since yesterday         # Recent entries only
+  $ clipkeeper list --format json             # JSON output
+  $ clipkeeper list --format csv              # CSV output
+  $ clipkeeper list --no-interactive          # Show table with IDs instead
       `)
       .action((options) => {
         this.handleList(options);
+      });
+
+    this.program
+      .command('copy')
+      .description('Copy a clipboard entry back to clipboard')
+      .argument('<id>', 'Entry ID to copy')
+      .addHelpText('after', `
+The copy command retrieves a historical clipboard entry by its ID and copies
+it back to your system clipboard, allowing you to reuse previously copied content.
+
+Use the 'list' or 'search' commands to find entry IDs.
+
+Examples:
+  $ clipkeeper copy abc123
+  $ clipkeeper copy def456
+      `)
+      .action((id) => {
+        this.handleCopy(id);
       });
 
     this.program
@@ -435,9 +470,368 @@ Examples:
     }
   }
 
-  handleSearch(query) {
-    console.log(`Searching for: ${query}`);
-    console.log('(Implementation pending)');
+  /**
+   * Handle search command
+   * Requirements: 1.1, 1.4, 1.5, 1.6, 1.7, 1.8
+   * @param {string} query - Search query
+   * @param {Object} options - Search options
+   */
+  async handleSearch(query, options = {}) {
+    try {
+      await this.initialize();
+      
+      // Parse limit
+      const limit = parseInt(options.limit, 10);
+      if (isNaN(limit) || limit <= 0) {
+        console.error('✗ Invalid limit value. Must be a positive number.');
+        process.exit(1);
+      }
+      
+      // Parse since option if provided
+      let since = null;
+      if (options.since) {
+        try {
+          since = this._parseDate(options.since);
+        } catch (error) {
+          console.error(`✗ ${error.message}`);
+          process.exit(1);
+        }
+      }
+      
+      // Get data directory and database path
+      const dataDir = this.configManager.get('storage.dataDir');
+      const dbPath = this.configManager.get('storage.dbPath') || 
+                     path.join(dataDir, 'clipboard-history.db');
+      
+      // Check if database exists
+      if (!fs.existsSync(dbPath)) {
+        console.log('No clipboard history found. Start the service to begin capturing clipboard entries.');
+        return;
+      }
+      
+      // Import HistoryStore and SearchService dynamically
+      const { default: HistoryStore } = await import('./HistoryStore.js');
+      const { default: SearchService } = await import('./SearchService.js');
+      
+      const historyStore = new HistoryStore(dbPath);
+      const searchService = new SearchService(historyStore);
+      
+      try {
+        // Build search options
+        const searchOptions = {
+          limit,
+        };
+        
+        if (options.type) {
+          searchOptions.contentType = options.type;
+        }
+        
+        if (since) {
+          searchOptions.since = since;
+        }
+        
+        // Perform search
+        const results = searchService.search(query, searchOptions);
+        
+        // Check if any results found
+        if (results.length === 0) {
+          console.log('\nNo results found.');
+          console.log(`\nTry a different search query or check your filters.`);
+          return;
+        }
+        
+        // Interactive mode is default (unless --no-interactive is specified)
+        if (options.interactive !== false) {
+          await this._handleInteractiveSelection(results, historyStore);
+          return;
+        }
+        
+        // Non-interactive mode - display table with IDs
+        console.log('\nSearch Results:');
+        console.log('─'.repeat(100));
+        
+        // Display results in table format with IDs
+        this._displaySearchResultsTable(results);
+        
+        // Display summary
+        console.log('─'.repeat(100));
+        console.log(`\nFound ${results.length} matching entries`);
+        console.log('\nUse "clipkeeper copy <id>" to copy an entry back to clipboard');
+        
+      } finally {
+        historyStore.close();
+      }
+      
+    } catch (error) {
+      // Handle specific error codes
+      if (error.code === 'SQLITE_BUSY') {
+        console.error(`✗ ${ErrorMessages.DATABASE_LOCKED}`);
+        process.exit(1);
+      } else if (error.code === 'ENOSPC') {
+        console.error(`✗ ${ErrorMessages.LOW_DISK_SPACE}`);
+        process.exit(1);
+      }
+      
+      console.error(`✗ Failed to search: ${error.message}`);
+      process.exit(1);
+    }
+  }
+
+  /**
+   * Display search results in table format with IDs
+   * @private
+   * @param {Array<Object>} results - Search results to display
+   */
+  _displaySearchResultsTable(results) {
+    // Column widths
+    const idWidth = 10;
+    const timestampWidth = 20;
+    const typeWidth = 12;
+    const previewWidth = 50;
+    
+    // Header
+    const header = 
+      'ID'.padEnd(idWidth) + ' ' +
+      'Timestamp'.padEnd(timestampWidth) + ' ' +
+      'Type'.padEnd(typeWidth) + ' ' +
+      'Preview';
+    console.log(header);
+    console.log('─'.repeat(100));
+    
+    // Rows
+    for (const result of results) {
+      // Format ID (truncate if too long)
+      const id = result.id ? result.id.substring(0, idWidth - 1).padEnd(idWidth) : ''.padEnd(idWidth);
+      
+      // Format timestamp (use relativeTime from SearchService)
+      const timestamp = result.relativeTime ? result.relativeTime.padEnd(timestampWidth) : ''.padEnd(timestampWidth);
+      
+      // Format type
+      const type = (result.contentType || result.content_type || 'unknown').padEnd(typeWidth);
+      
+      // Format preview (use preview from SearchService)
+      const preview = this._formatPreview(result.preview || result.content, previewWidth);
+      
+      // Print row
+      console.log(
+        id + ' ' +
+        timestamp + ' ' +
+        type + ' ' +
+        preview
+      );
+    }
+  }
+
+  /**
+   * Parse date string into Date object
+   * Supports ISO dates (YYYY-MM-DD), relative terms (yesterday, today),
+   * and relative offsets (7 days ago)
+   * @param {string} dateStr - Date string to parse
+   * @returns {Date} Parsed date
+   * @throws {Error} If date format is invalid
+   * @private
+   */
+  _parseDate(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') {
+      throw new Error(ErrorMessages.INVALID_DATE(dateStr));
+    }
+
+    const str = dateStr.trim().toLowerCase();
+
+    // Handle relative terms
+    if (str === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return today;
+    }
+
+    if (str === 'yesterday') {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      return yesterday;
+    }
+
+    // Handle relative offsets like "7 days ago", "2 weeks ago", "3 months ago"
+    const relativeMatch = str.match(/^(\d+)\s+(day|days|week|weeks|month|months|year|years)\s+ago$/);
+    if (relativeMatch) {
+      const amount = parseInt(relativeMatch[1], 10);
+      const unit = relativeMatch[2];
+      const date = new Date();
+
+      if (unit.startsWith('day')) {
+        date.setDate(date.getDate() - amount);
+      } else if (unit.startsWith('week')) {
+        date.setDate(date.getDate() - (amount * 7));
+      } else if (unit.startsWith('month')) {
+        date.setMonth(date.getMonth() - amount);
+      } else if (unit.startsWith('year')) {
+        date.setFullYear(date.getFullYear() - amount);
+      }
+
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
+
+    // Handle ISO date format (YYYY-MM-DD)
+    const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      const year = parseInt(isoMatch[1], 10);
+      const month = parseInt(isoMatch[2], 10) - 1; // Month is 0-indexed
+      const day = parseInt(isoMatch[3], 10);
+      
+      const date = new Date(year, month, day);
+      
+      // Validate the date is valid
+      if (date.getFullYear() !== year || date.getMonth() !== month || date.getDate() !== day) {
+        throw new Error(ErrorMessages.INVALID_DATE(dateStr));
+      }
+      
+      return date;
+    }
+
+    // If no pattern matched, throw error
+    throw new Error(ErrorMessages.INVALID_DATE(dateStr));
+  }
+
+  /**
+   * Handle interactive selection of entries
+   * @private
+   * @param {Array<Object>} entries - Entries to select from
+   * @param {Object} historyStore - HistoryStore instance
+   */
+  async _handleInteractiveSelection(entries, historyStore) {
+    const { select, Separator } = await import('@inquirer/prompts');
+    const { default: ClipboardService } = await import('./ClipboardService.js');
+    
+    // Format entries as choices for the prompt
+    const choices = [
+      {
+        name: '[ Cancel ]',
+        value: '__CANCEL__',
+        description: 'Return to terminal without copying'
+      },
+      new Separator(),
+      ...entries.map(entry => {
+        const date = new Date(entry.timestamp);
+        const timestamp = this._formatTimestamp(date);
+        const preview = this._formatPreview(entry.content, 60);
+        
+        return {
+          name: `[${timestamp}] ${entry.contentType.padEnd(10)} ${preview}`,
+          value: entry.id,
+          description: entry.content.length > 100 
+            ? entry.content.substring(0, 100) + '...' 
+            : entry.content
+        };
+      })
+    ];
+    
+    try {
+      // Show interactive selection
+      const selectedId = await select({
+        message: 'Select an entry to copy to clipboard:',
+        choices,
+        pageSize: 15
+      });
+      
+      // Check if user selected cancel
+      if (selectedId === '__CANCEL__') {
+        console.log('\nCancelled');
+        return;
+      }
+      
+      // Get the full entry
+      const entry = historyStore.getById(selectedId);
+      
+      if (!entry) {
+        console.error('✗ Entry not found');
+        return;
+      }
+      
+      // Copy to clipboard
+      const clipboardService = new ClipboardService();
+      await clipboardService.copy(entry.content);
+      
+      // Show success message
+      console.log(`\n✓ Copied to clipboard!`);
+      const preview = this._formatPreview(entry.content, 80);
+      console.log(`\nContent: ${preview}`);
+      
+    } catch (error) {
+      // User cancelled (Ctrl+C)
+      if (error.name === 'ExitPromptError') {
+        console.log('\nCancelled');
+        return;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Handle copy command
+   * Requirements: 2.2, 2.3, 2.4, 2.5
+   * @param {string} id - Entry ID to copy
+   */
+  async handleCopy(id) {
+    try {
+      await this.initialize();
+      
+      // Get data directory and database path
+      const dataDir = this.configManager.get('storage.dataDir');
+      const dbPath = this.configManager.get('storage.dbPath') || 
+                     path.join(dataDir, 'clipboard-history.db');
+      
+      // Check if database exists
+      if (!fs.existsSync(dbPath)) {
+        console.error('✗ No clipboard history found. Start the service to begin capturing clipboard entries.');
+        process.exit(1);
+      }
+      
+      // Import HistoryStore and ClipboardService dynamically
+      const { default: HistoryStore } = await import('./HistoryStore.js');
+      const { default: ClipboardService } = await import('./ClipboardService.js');
+      
+      const historyStore = new HistoryStore(dbPath);
+      const clipboardService = new ClipboardService();
+      
+      try {
+        // Get entry by ID
+        const entry = historyStore.getById(id);
+        
+        // Check if entry exists
+        if (!entry) {
+          console.error(`✗ ${ErrorMessages.ENTRY_NOT_FOUND(id)}`);
+          process.exit(1);
+        }
+        
+        // Copy content to clipboard
+        await clipboardService.copy(entry.content);
+        
+        // Display success message
+        console.log(`✓ Copied entry ${id} to clipboard`);
+        
+        // Show preview of copied content
+        const preview = this._formatPreview(entry.content, 60);
+        console.log(`\nContent: ${preview}`);
+        
+      } finally {
+        historyStore.close();
+      }
+      
+    } catch (error) {
+      // Handle specific error codes
+      if (error.code === 'SQLITE_BUSY') {
+        console.error(`✗ ${ErrorMessages.DATABASE_LOCKED}`);
+        process.exit(1);
+      } else if (error.code === 'ENOSPC') {
+        console.error(`✗ ${ErrorMessages.LOW_DISK_SPACE}`);
+        process.exit(1);
+      }
+      
+      console.error(`✗ Failed to copy entry: ${error.message}`);
+      process.exit(1);
+    }
   }
 
   async handleList(options) {
@@ -448,6 +842,14 @@ Examples:
       const limit = parseInt(options.limit, 10);
       if (isNaN(limit) || limit <= 0) {
         console.error('✗ Invalid limit value. Must be a positive number.');
+        process.exit(1);
+      }
+      
+      // Validate format option
+      const validFormats = ['table', 'json', 'csv'];
+      const format = options.format || 'table';
+      if (!validFormats.includes(format)) {
+        console.error(`✗ Invalid format: ${format}. Must be one of: ${validFormats.join(', ')}`);
         process.exit(1);
       }
       
@@ -469,35 +871,96 @@ Examples:
       try {
         // Retrieve entries
         let entries;
-        if (options.type) {
-          entries = historyStore.getRecentByType(limit, options.type);
+        let totalCount = 0;
+        
+        // If search option provided, use SearchService
+        if (options.search) {
+          const { default: SearchService } = await import('./SearchService.js');
+          const searchService = new SearchService(historyStore);
+          
+          // Build search options
+          const searchOptions = { limit };
+          if (options.type) {
+            searchOptions.contentType = options.type;
+          }
+          if (options.since) {
+            const sinceDate = this._parseDate(options.since);
+            if (!sinceDate) {
+              console.error(`✗ Invalid date format: ${options.since}`);
+              console.error('Use format: YYYY-MM-DD or "yesterday", "today", "7 days ago"');
+              process.exit(1);
+            }
+            searchOptions.since = sinceDate;
+          }
+          
+          // Perform search
+          const results = searchService.search(options.search, searchOptions);
+          entries = results;
+          
+          // Get total count for search results
+          totalCount = entries.length;
         } else {
-          entries = historyStore.getRecent(limit);
+          // Use HistoryStore.getRecent() or getSince()
+          if (options.since) {
+            const sinceDate = this._parseDate(options.since);
+            if (!sinceDate) {
+              console.error(`✗ Invalid date format: ${options.since}`);
+              console.error('Use format: YYYY-MM-DD or "yesterday", "today", "7 days ago"');
+              process.exit(1);
+            }
+            entries = historyStore.getSince(sinceDate, limit);
+          } else if (options.type) {
+            entries = historyStore.getRecentByType(limit, options.type);
+          } else {
+            entries = historyStore.getRecent(limit);
+          }
+          
+          // Get total count
+          if (options.type) {
+            const countByType = historyStore.getCountByType();
+            totalCount = countByType[options.type] || 0;
+          } else {
+            totalCount = historyStore.getCount();
+          }
         }
         
         // Check if any entries found
         if (entries.length === 0) {
-          if (options.type) {
+          if (options.search) {
+            console.log(`No clipboard entries found matching "${options.search}".`);
+          } else if (options.type) {
             console.log(`No clipboard entries found with type "${options.type}".`);
+          } else if (options.since) {
+            console.log(`No clipboard entries found since ${options.since}.`);
           } else {
             console.log('No clipboard entries found.');
           }
           return;
         }
         
-        // Display header
-        console.log('\nClipboard History:');
-        console.log('─'.repeat(100));
+        // Interactive mode is default (unless --no-interactive is specified or format is not table)
+        if (options.interactive !== false && format === 'table') {
+          await this._handleInteractiveSelection(entries, historyStore);
+          return;
+        }
         
-        // Display entries in table format
-        this._displayEntriesTable(entries);
-        
-        // Display summary
-        console.log('─'.repeat(100));
-        if (options.type) {
-          console.log(`\nShowing ${entries.length} entries of type "${options.type}"`);
+        // Non-interactive mode - format output based on --format option
+        if (format === 'json') {
+          this._formatJSON(entries);
+        } else if (format === 'csv') {
+          this._formatCSV(entries);
         } else {
-          console.log(`\nShowing ${entries.length} most recent entries`);
+          // Table format (default)
+          console.log('\nClipboard History:');
+          console.log('─'.repeat(100));
+          
+          // Display entries in table format with IDs
+          this._displayEntriesTable(entries, true);
+          
+          // Display summary with total count
+          console.log('─'.repeat(100));
+          console.log(`\nShowing ${entries.length} of ${totalCount} total entries`);
+          console.log('\nUse "clipkeeper copy <id>" to copy an entry back to clipboard');
         }
         
       } finally {
@@ -505,6 +968,15 @@ Examples:
       }
       
     } catch (error) {
+      // Handle specific error codes
+      if (error.code === 'SQLITE_BUSY') {
+        console.error(`✗ ${ErrorMessages.DATABASE_LOCKED}`);
+        process.exit(1);
+      } else if (error.code === 'ENOSPC') {
+        console.error(`✗ ${ErrorMessages.LOW_DISK_SPACE}`);
+        process.exit(1);
+      }
+      
       console.error(`✗ Failed to list entries: ${error.message}`);
       process.exit(1);
     }
@@ -514,39 +986,81 @@ Examples:
    * Display entries in table format
    * @private
    * @param {Array<Object>} entries - Clipboard entries to display
+   * @param {boolean} showIds - Whether to show entry IDs
    */
-  _displayEntriesTable(entries) {
-    // Column widths
-    const timestampWidth = 20;
-    const typeWidth = 12;
-    const previewWidth = 60;
-    
-    // Header
-    const header = 
-      'Timestamp'.padEnd(timestampWidth) + ' ' +
-      'Type'.padEnd(typeWidth) + ' ' +
-      'Preview';
-    console.log(header);
-    console.log('─'.repeat(100));
-    
-    // Rows
-    for (const entry of entries) {
-      // Format timestamp
-      const date = new Date(entry.timestamp);
-      const timestamp = this._formatTimestamp(date);
+  _displayEntriesTable(entries, showIds = false) {
+    if (showIds) {
+      // Column widths with IDs
+      const idWidth = 10;
+      const timestampWidth = 20;
+      const typeWidth = 12;
+      const previewWidth = 50;
       
-      // Format type
-      const type = entry.contentType.padEnd(typeWidth);
+      // Header
+      const header = 
+        'ID'.padEnd(idWidth) + ' ' +
+        'Timestamp'.padEnd(timestampWidth) + ' ' +
+        'Type'.padEnd(typeWidth) + ' ' +
+        'Preview';
+      console.log(header);
+      console.log('─'.repeat(100));
       
-      // Format preview (truncate and escape newlines)
-      const preview = this._formatPreview(entry.content, previewWidth);
+      // Rows
+      for (const entry of entries) {
+        // Format ID (show first 8 chars)
+        const id = entry.id ? entry.id.substring(0, 8).padEnd(idWidth) : ''.padEnd(idWidth);
+        
+        // Format timestamp
+        const date = new Date(entry.timestamp);
+        const timestamp = this._formatTimestamp(date);
+        
+        // Format type
+        const type = entry.contentType.padEnd(typeWidth);
+        
+        // Format preview (truncate and escape newlines)
+        const preview = this._formatPreview(entry.content, previewWidth);
+        
+        // Print row
+        console.log(
+          id + ' ' +
+          timestamp.padEnd(timestampWidth) + ' ' +
+          type + ' ' +
+          preview
+        );
+      }
+    } else {
+      // Original format without IDs
+      const timestampWidth = 20;
+      const typeWidth = 12;
+      const previewWidth = 60;
       
-      // Print row
-      console.log(
-        timestamp.padEnd(timestampWidth) + ' ' +
-        type + ' ' +
-        preview
-      );
+      // Header
+      const header = 
+        'Timestamp'.padEnd(timestampWidth) + ' ' +
+        'Type'.padEnd(typeWidth) + ' ' +
+        'Preview';
+      console.log(header);
+      console.log('─'.repeat(100));
+      
+      // Rows
+      for (const entry of entries) {
+        // Format timestamp
+        const date = new Date(entry.timestamp);
+        const timestamp = this._formatTimestamp(date);
+        
+        // Format type
+        const type = entry.contentType.padEnd(typeWidth);
+        
+        // Format preview (truncate and escape newlines)
+        const preview = this._formatPreview(entry.content, previewWidth);
+        
+        // Print row
+        console.log(
+          timestamp.padEnd(timestampWidth) + ' ' +
+          type + ' ' +
+          preview
+        );
+      }
     }
   }
 
@@ -606,6 +1120,43 @@ Examples:
     return preview;
   }
 
+  /**
+   * Format entries as JSON
+   * @private
+   * @param {Array<Object>} entries - Clipboard entries to format
+   */
+  _formatJSON(entries) {
+    console.log(JSON.stringify(entries, null, 2));
+  }
+
+  /**
+   * Format entries as CSV
+   * @private
+   * @param {Array<Object>} entries - Clipboard entries to format
+   */
+  _formatCSV(entries) {
+    // CSV header
+    console.log('id,timestamp,contentType,content');
+
+    // CSV rows
+    for (const entry of entries) {
+      const id = entry.id || '';
+      const timestamp = entry.timestamp;
+      const contentType = entry.contentType;
+
+      // Escape content for CSV (handle quotes and newlines)
+      let content = entry.content;
+      // Replace double quotes with two double quotes (CSV escaping)
+      content = content.replace(/"/g, '""');
+      // Replace newlines with spaces for CSV
+      content = content.replace(/[\n\r]+/g, ' ');
+
+      // Output row with quoted content field
+      console.log(`${id},${timestamp},${contentType},"${content}"`);
+    }
+  }
+
+
   async handleClear(options) {
     try {
       await this.initialize();
@@ -658,6 +1209,15 @@ Examples:
       }
       
     } catch (error) {
+      // Handle specific error codes
+      if (error.code === 'SQLITE_BUSY') {
+        console.error(`✗ ${ErrorMessages.DATABASE_LOCKED}`);
+        process.exit(1);
+      } else if (error.code === 'ENOSPC') {
+        console.error(`✗ ${ErrorMessages.LOW_DISK_SPACE}`);
+        process.exit(1);
+      }
+      
       console.error(`✗ Failed to clear history: ${error.message}`);
       process.exit(1);
     }
@@ -709,7 +1269,7 @@ Examples:
       // Validate the configuration
       const validation = await this.configManager.validate();
       if (!validation.valid) {
-        console.error(`✗ Invalid configuration: ${validation.errors.join(', ')}`);
+        console.error(`✗ ${ErrorMessages.INVALID_CONFIG(validation.errors)}`);
         process.exit(1);
       }
 

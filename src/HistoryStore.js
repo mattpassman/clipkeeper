@@ -14,6 +14,7 @@ class HistoryStore {
   constructor(dbPath) {
     this.dbPath = dbPath;
     this.db = null;
+    this.hasFTS5 = false; // Flag to track FTS5 availability
     this._initializeDatabase();
   }
 
@@ -45,7 +46,14 @@ class HistoryStore {
    * @private
    */
   _createSchema() {
-    // Create clipboard_entries table
+    // Create schema_version table for migration tracking
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS schema_version (
+        version INTEGER PRIMARY KEY
+      );
+    `);
+
+    // Create clipboard_entries table FIRST (needed for migrations)
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS clipboard_entries (
         id TEXT PRIMARY KEY,
@@ -73,7 +81,128 @@ class HistoryStore {
       CREATE INDEX IF NOT EXISTS idx_created_at 
       ON clipboard_entries(created_at);
     `);
+
+    // Get current schema version
+    const currentVersion = this._getCurrentSchemaVersion();
+
+    // Run migrations if needed (after base tables are created)
+    this._runMigrations(currentVersion);
   }
+
+  /**
+   * Get current schema version from database
+   * @private
+   * @returns {number} Current schema version (0 if not set)
+   */
+  _getCurrentSchemaVersion() {
+    try {
+      const row = this.db.prepare('SELECT version FROM schema_version').get();
+      return row ? row.version : 0;
+    } catch (error) {
+      // Table doesn't exist yet or is empty
+      return 0;
+    }
+  }
+
+  /**
+   * Set schema version in database
+   * @private
+   * @param {number} version - Schema version to set
+   */
+  _setSchemaVersion(version) {
+    // Delete existing version and insert new one
+    this.db.prepare('DELETE FROM schema_version').run();
+    this.db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(version);
+  }
+
+  /**
+   * Run database migrations
+   * @private
+   * @param {number} currentVersion - Current schema version
+   */
+  _runMigrations(currentVersion) {
+    const targetVersion = 2; // Updated target schema version for FTS5
+
+    if (currentVersion < 1) {
+      // Migration to version 1: Base schema (already created in _createSchema)
+      this._setSchemaVersion(1);
+      currentVersion = 1; // Update for next migration check
+    }
+
+    if (currentVersion < 2) {
+      // Migration to version 2: Add FTS5 support
+      this._migrateFTS5();
+      this._setSchemaVersion(2);
+    }
+  }
+
+  /**
+   * Migrate to FTS5 full-text search
+   * Creates FTS5 virtual table, triggers, and populates from existing data
+   * Falls back gracefully if FTS5 is not available
+   * @private
+   */
+  _migrateFTS5() {
+    try {
+      // Test if FTS5 is available by creating a temporary table
+      this.db.exec('CREATE VIRTUAL TABLE test_fts USING fts5(content)');
+      this.db.exec('DROP TABLE test_fts');
+      
+      // FTS5 is available, create the virtual table
+      this.db.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS clipboard_entries_fts USING fts5(
+          content,
+          content='clipboard_entries',
+          content_rowid='rowid'
+        );
+      `);
+      
+      // Create triggers to keep FTS index in sync with main table
+      // Trigger for INSERT
+      this.db.exec(`
+        CREATE TRIGGER IF NOT EXISTS clipboard_entries_ai 
+        AFTER INSERT ON clipboard_entries BEGIN
+          INSERT INTO clipboard_entries_fts(rowid, content) 
+          VALUES (new.rowid, new.content);
+        END;
+      `);
+      
+      // Trigger for DELETE
+      this.db.exec(`
+        CREATE TRIGGER IF NOT EXISTS clipboard_entries_ad 
+        AFTER DELETE ON clipboard_entries BEGIN
+          DELETE FROM clipboard_entries_fts WHERE rowid = old.rowid;
+        END;
+      `);
+      
+      // Trigger for UPDATE
+      this.db.exec(`
+        CREATE TRIGGER IF NOT EXISTS clipboard_entries_au 
+        AFTER UPDATE ON clipboard_entries BEGIN
+          UPDATE clipboard_entries_fts 
+          SET content = new.content 
+          WHERE rowid = new.rowid;
+        END;
+      `);
+      
+      // Populate FTS index from existing entries
+      // Use INSERT OR IGNORE to handle case where FTS table already has data
+      this.db.exec(`
+        INSERT OR IGNORE INTO clipboard_entries_fts(rowid, content)
+        SELECT rowid, content FROM clipboard_entries;
+      `);
+      
+      // Set flag to indicate FTS5 is available
+      this.hasFTS5 = true;
+      
+      console.log('FTS5 full-text search enabled');
+    } catch (error) {
+      // FTS5 not available, fall back to LIKE queries
+      this.hasFTS5 = false;
+      console.warn('FTS5 not available, using LIKE fallback for text search');
+    }
+  }
+
 
   /**
    * Close database connection
@@ -206,6 +335,236 @@ class HistoryStore {
   }
 
   /**
+   * Get entries since a specific date
+   * Implements Requirement 4.3
+   * @param {Date|number} since - Date object or Unix timestamp in milliseconds
+   * @param {number} [limit=100] - Maximum number of results
+   * @returns {Array<Object>} Entries after the date, ordered by timestamp DESC
+   */
+  getSince(since, limit = 100) {
+    if (!this.isOpen()) {
+      throw new Error('Database is not open');
+    }
+
+    // Convert Date to timestamp if needed
+    const timestamp = since instanceof Date ? since.getTime() : since;
+
+    const stmt = this.db.prepare(`
+      SELECT id, content, content_type, timestamp, source_app, metadata, created_at
+      FROM clipboard_entries
+      WHERE timestamp >= ?
+      ORDER BY timestamp DESC
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(timestamp, limit);
+
+    return rows.map(row => this._rowToEntry(row));
+  }
+
+
+  /**
+   * Search clipboard entries by text content
+   * Implements Requirements 1.1, 1.2, 1.3, 1.6, 1.7, 1.8
+   * @param {string} query - Search query (case-insensitive, supports multiple keywords)
+   * @param {Object} options - Search options
+   * @param {number} [options.limit=10] - Maximum number of results
+   * @param {string} [options.contentType] - Filter by content type
+   * @param {Date|number} [options.since] - Only entries after this date
+   * @returns {Array<Object>} Matching entries ordered by timestamp DESC
+   */
+  search(query, options = {}) {
+    if (!this.isOpen()) {
+      throw new Error('Database is not open');
+    }
+
+    // Parse options with defaults
+    const limit = options.limit || 10;
+    const contentType = options.contentType || null;
+    const since = options.since ? (options.since instanceof Date ? options.since.getTime() : options.since) : null;
+
+    // Parse query into keywords (split on whitespace, remove empty strings)
+    const keywords = query.trim().split(/\s+/).filter(k => k.length > 0);
+    
+    if (keywords.length === 0) {
+      return [];
+    }
+
+    let rows;
+
+    if (this.hasFTS5) {
+      // Use FTS5 MATCH for full-text search
+      // FTS5 MATCH syntax: keywords are ANDed together
+      const ftsQuery = keywords.join(' ');
+      
+      let sql = `
+        SELECT e.id, e.content, e.content_type, e.timestamp, e.source_app, e.metadata, e.created_at
+        FROM clipboard_entries e
+        JOIN clipboard_entries_fts fts ON e.rowid = fts.rowid
+        WHERE fts.content MATCH ?
+      `;
+      
+      const params = [ftsQuery];
+      
+      // Add content type filter if specified
+      if (contentType) {
+        sql += ' AND e.content_type = ?';
+        params.push(contentType);
+      }
+      
+      // Add date filter if specified
+      if (since) {
+        sql += ' AND e.timestamp >= ?';
+        params.push(since);
+      }
+      
+      // Order by timestamp DESC and apply limit
+      sql += ' ORDER BY e.timestamp DESC LIMIT ?';
+      params.push(limit);
+      
+      const stmt = this.db.prepare(sql);
+      rows = stmt.all(...params);
+    } else {
+      // Fall back to LIKE with AND logic
+      let sql = `
+        SELECT id, content, content_type, timestamp, source_app, metadata, created_at
+        FROM clipboard_entries
+        WHERE 1=1
+      `;
+      
+      const params = [];
+      
+      // Add LIKE clause for each keyword (AND logic)
+      for (const keyword of keywords) {
+        sql += ' AND content LIKE ?';
+        params.push(`%${keyword}%`);
+      }
+      
+      // Add content type filter if specified
+      if (contentType) {
+        sql += ' AND content_type = ?';
+        params.push(contentType);
+      }
+      
+      // Add date filter if specified
+      if (since) {
+        sql += ' AND timestamp >= ?';
+        params.push(since);
+      }
+      
+      // Order by timestamp DESC and apply limit
+      sql += ' ORDER BY timestamp DESC LIMIT ?';
+      params.push(limit);
+      
+      const stmt = this.db.prepare(sql);
+      rows = stmt.all(...params);
+    }
+
+    return rows.map(row => this._rowToEntry(row));
+  }
+
+  /**
+   * Search clipboard entries by text content
+   * Implements Requirements 1.1, 1.2, 1.3, 1.6, 1.7, 1.8
+   * @param {string} query - Search query (case-insensitive, supports multiple keywords)
+   * @param {Object} options - Search options
+   * @param {number} [options.limit=10] - Maximum number of results
+   * @param {string} [options.contentType] - Filter by content type
+   * @param {Date|number} [options.since] - Only entries after this date
+   * @returns {Array<Object>} Matching entries ordered by timestamp DESC
+   */
+  search(query, options = {}) {
+    if (!this.isOpen()) {
+      throw new Error('Database is not open');
+    }
+
+    // Parse options with defaults
+    const limit = options.limit || 10;
+    const contentType = options.contentType || null;
+    const since = options.since ? (options.since instanceof Date ? options.since.getTime() : options.since) : null;
+
+    // Parse query into keywords (split on whitespace, remove empty strings)
+    const keywords = query.trim().split(/\s+/).filter(k => k.length > 0);
+
+    if (keywords.length === 0) {
+      return [];
+    }
+
+    let rows;
+
+    if (this.hasFTS5) {
+      // Use FTS5 MATCH for full-text search
+      // FTS5 MATCH syntax: keywords are ANDed together
+      const ftsQuery = keywords.join(' ');
+
+      let sql = `
+        SELECT e.id, e.content, e.content_type, e.timestamp, e.source_app, e.metadata, e.created_at
+        FROM clipboard_entries e
+        JOIN clipboard_entries_fts fts ON e.rowid = fts.rowid
+        WHERE fts.content MATCH ?
+      `;
+
+      const params = [ftsQuery];
+
+      // Add content type filter if specified
+      if (contentType) {
+        sql += ' AND e.content_type = ?';
+        params.push(contentType);
+      }
+
+      // Add date filter if specified
+      if (since) {
+        sql += ' AND e.timestamp >= ?';
+        params.push(since);
+      }
+
+      // Order by timestamp DESC and apply limit
+      sql += ' ORDER BY e.timestamp DESC LIMIT ?';
+      params.push(limit);
+
+      const stmt = this.db.prepare(sql);
+      rows = stmt.all(...params);
+    } else {
+      // Fall back to LIKE with AND logic
+      let sql = `
+        SELECT id, content, content_type, timestamp, source_app, metadata, created_at
+        FROM clipboard_entries
+        WHERE 1=1
+      `;
+
+      const params = [];
+
+      // Add LIKE clause for each keyword (AND logic)
+      for (const keyword of keywords) {
+        sql += ' AND content LIKE ?';
+        params.push(`%${keyword}%`);
+      }
+
+      // Add content type filter if specified
+      if (contentType) {
+        sql += ' AND content_type = ?';
+        params.push(contentType);
+      }
+
+      // Add date filter if specified
+      if (since) {
+        sql += ' AND timestamp >= ?';
+        params.push(since);
+      }
+
+      // Order by timestamp DESC and apply limit
+      sql += ' ORDER BY timestamp DESC LIMIT ?';
+      params.push(limit);
+
+      const stmt = this.db.prepare(sql);
+      rows = stmt.all(...params);
+    }
+
+    return rows.map(row => this._rowToEntry(row));
+  }
+
+
+  /**
    * Delete a clipboard entry by ID
    * @param {string} id - Entry ID
    * @returns {boolean} True if entry was deleted, false if not found
@@ -264,6 +623,51 @@ class HistoryStore {
     const result = stmt.run();
 
     return result.changes;
+  }
+
+  /**
+   * Get total count of clipboard entries
+   * @returns {number} Total entry count
+   */
+  getCount() {
+    if (!this.isOpen()) {
+      throw new Error('Database is not open');
+    }
+
+    const stmt = this.db.prepare(`
+      SELECT COUNT(*) as count
+      FROM clipboard_entries
+    `);
+
+    const result = stmt.get();
+
+    return result.count;
+  }
+
+  /**
+   * Get count of clipboard entries grouped by content type
+   * @returns {Object} Map of content_type -> count
+   */
+  getCountByType() {
+    if (!this.isOpen()) {
+      throw new Error('Database is not open');
+    }
+
+    const stmt = this.db.prepare(`
+      SELECT content_type, COUNT(*) as count
+      FROM clipboard_entries
+      GROUP BY content_type
+    `);
+
+    const rows = stmt.all();
+
+    // Convert array of rows to object map
+    const countMap = {};
+    for (const row of rows) {
+      countMap[row.content_type] = row.count;
+    }
+
+    return countMap;
   }
 
   /**

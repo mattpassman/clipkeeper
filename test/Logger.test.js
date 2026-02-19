@@ -17,11 +17,13 @@ describe('Logger', () => {
 
   afterEach(() => {
     // Clean up test log files
-    if (fs.existsSync(testLogPath)) {
-      fs.unlinkSync(testLogPath);
-    }
-    if (fs.existsSync(testLogDir)) {
-      fs.rmdirSync(testLogDir, { recursive: true });
+    try {
+      if (fs.existsSync(testLogDir)) {
+        fs.rmSync(testLogDir, { recursive: true, force: true });
+      }
+    } catch (error) {
+      // Ignore cleanup errors on Windows due to file locking
+      console.warn('Cleanup warning:', error.message);
     }
   });
 

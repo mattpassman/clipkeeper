@@ -58,3 +58,5 @@ temp/
 
 # Spec files
 .kiro/
+
+new_release.md

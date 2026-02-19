@@ -1,6 +1,6 @@
 {
   "name": "clipkeeper",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Smart clipboard history manager with automatic content classification and privacy filtering",
   "type": "module",
   "main": "src/index.js",
@@ -8,7 +8,7 @@
     "clipkeeper": "src/cli.js"
   },
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "node --test --test-concurrency 1 test/*.test.js",
     "test:watch": "node --test --watch test/*.test.js",
     "start": "node src/cli.js start",
     "dev": "node --watch src/cli.js",
@@ -40,6 +40,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
+    "@inquirer/prompts": "^7.10.1",
     "better-sqlite3": "^9.0.0",
     "clipboardy": "^3.0.0",
     "commander": "^11.0.0"

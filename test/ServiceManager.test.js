@@ -85,13 +85,24 @@ describe('ServiceManager', () => {
     assert.ok(status.pidFile);
   });
 
-  it.skip('should prevent starting when already running', () => {
-    // TODO: This test causes issues when run in isolation
-    // The test works when run with the full suite but fails when run alone
+  it('should prevent starting when already running', () => {
+    // Write current process PID to simulate a running service
     serviceManager.writePid(process.pid);
+    
+    // Verify the PID file was written correctly
+    assert.ok(fs.existsSync(serviceManager.pidFilePath));
+    assert.strictEqual(serviceManager.getPid(), process.pid);
+    
+    // Verify isRunning() returns true
+    assert.strictEqual(serviceManager.isRunning(), true);
+    
+    // Try to start - should fail because service is "already running"
     const result = serviceManager.start();
     assert.strictEqual(result.success, false);
     assert.ok(result.message.includes('already running'));
+    
+    // Clean up the PID file we created
+    serviceManager.removePidFile();
   });
 
   it('should handle stop when not running', () => {

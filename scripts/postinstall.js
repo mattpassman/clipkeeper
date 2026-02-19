@@ -25,20 +25,28 @@ console.log(`
   3. View your clipboard history:
      $ clipkeeper list
 
-  4. Filter by content type:
-     $ clipkeeper list --type url
-     $ clipkeeper list --type code
+  4. Search your clipboard history:
+     $ clipkeeper search "keyword"
 
-  5. Check service status:
+  5. Copy a previous entry back to clipboard:
+     $ clipkeeper copy <entry-id>
+
+  6. Filter by content type:
+     $ clipkeeper list --type url
+     $ clipkeeper search "error" --type code
+
+  7. Check service status:
      $ clipkeeper status
 
 📚 More Commands:
 
-  clipkeeper stop              Stop the background service
-  clipkeeper clear             Clear clipboard history
-  clipkeeper config show       View all settings
+  clipkeeper search <query>     Search clipboard history
+  clipkeeper copy <id>          Copy entry back to clipboard
+  clipkeeper stop               Stop the background service
+  clipkeeper clear              Clear clipboard history
+  clipkeeper config show        View all settings
   clipkeeper config set <key> <value>  Update settings
-  clipkeeper --help            Show all commands
+  clipkeeper --help             Show all commands
 
 🔒 Privacy:
 

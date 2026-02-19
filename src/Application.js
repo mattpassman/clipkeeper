@@ -6,6 +6,9 @@ import ClipboardMonitor from './ClipboardMonitor.js';
 import { PrivacyFilter } from './PrivacyFilter.js';
 import { ContentClassifier } from './ContentClassifier.js';
 import { getLogger } from './Logger.js';
+import RetentionService from './RetentionService.js';
+import SearchService from './SearchService.js';
+import ClipboardService from './ClipboardService.js';
 
 /**
  * Application class - Main orchestrator for clipkeeper
@@ -24,6 +27,9 @@ export class Application {
     this.clipboardMonitor = null;
     this.privacyFilter = null;
     this.contentClassifier = null;
+    this.retentionService = null;
+    this.searchService = null;
+    this.clipboardService = null;
     
     // State
     this.isRunning = false;
@@ -82,6 +88,18 @@ export class Application {
       // Set up error event handler
       this.clipboardMonitor.on('error', this._handleClipboardError.bind(this));
       
+      // Initialize RetentionService
+      this.logger.info('Application', 'Initializing RetentionService');
+      this.retentionService = new RetentionService(this.historyStore, this.configManager);
+      
+      // Initialize SearchService
+      this.logger.info('Application', 'Initializing SearchService');
+      this.searchService = new SearchService(this.historyStore);
+      
+      // Initialize ClipboardService
+      this.logger.info('Application', 'Initializing ClipboardService');
+      this.clipboardService = new ClipboardService();
+      
       this.logger.info('Application', 'Initialization complete');
       
     } catch (error) {
@@ -98,7 +116,7 @@ export class Application {
 
   /**
    * Start the application
-   * Begins clipboard monitoring
+   * Begins clipboard monitoring and retention cleanup
    */
   start() {
     if (this.isRunning) {
@@ -112,13 +130,20 @@ export class Application {
     
     this.logger.info('Application', 'Starting application');
     this.clipboardMonitor.start();
+    
+    // Start retention service
+    if (this.retentionService) {
+      this.logger.info('Application', 'Starting RetentionService');
+      this.retentionService.start();
+    }
+    
     this.isRunning = true;
     this.logger.info('Application', 'Application started successfully');
   }
 
   /**
    * Stop the application
-   * Stops clipboard monitoring and closes database connections
+   * Stops clipboard monitoring, retention cleanup, and closes database connections
    */
   stop() {
     if (!this.isRunning) {
@@ -127,6 +152,12 @@ export class Application {
     }
     
     this.logger.info('Application', 'Stopping application');
+    
+    // Stop retention service
+    if (this.retentionService) {
+      this.logger.info('Application', 'Stopping RetentionService');
+      this.retentionService.stop();
+    }
     
     // Stop clipboard monitoring
     if (this.clipboardMonitor) {
@@ -239,7 +270,10 @@ export class Application {
         historyStore: this.historyStore !== null && this.historyStore.isOpen(),
         clipboardMonitor: this.clipboardMonitor !== null,
         privacyFilter: this.privacyFilter !== null,
-        contentClassifier: this.contentClassifier !== null
+        contentClassifier: this.contentClassifier !== null,
+        retentionService: this.retentionService !== null,
+        searchService: this.searchService !== null,
+        clipboardService: this.clipboardService !== null
       },
       config: {
         dataDir: this.configManager?.get('storage.dataDir'),
