@@ -75,6 +75,7 @@ clipkeeper search "https" --limit 20
 # Filter by date
 clipkeeper list --since 2024-01-01
 clipkeeper list --since yesterday
+clipkeeper list --since "10 days ago"
 ```
 
 Available content types: `text`, `code`, `url`, `json`, `xml`, `markdown`, `file_path`, `image`
@@ -221,6 +222,9 @@ clipkeeper list --type url --limit 20
 
 # View entries from the last week
 clipkeeper list --since "7 days ago"
+
+# View entries from the last 10 days
+clipkeeper list --since "10 days ago"
 
 # Export history as JSON
 clipkeeper list --format json > history.json
