@@ -1,6 +1,6 @@
 {
   "name": "clipkeeper",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Smart clipboard history manager with automatic content classification and privacy filtering",
   "type": "module",
   "main": "src/index.js",
