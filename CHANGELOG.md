@@ -73,13 +73,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned for v0.3.0
+### Planned for v0.4.0
 - Semantic search with natural language queries
 - LLM embedding integration (OpenAI, Anthropic, Ollama)
 - Vector similarity search
 - Usage statistics and analytics
 
-### Planned for v0.4.0
+### Planned for v0.5.0
 - Optional sync across devices
 - GUI application
 - Plugin system
@@ -87,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.2.0] - 2025-02-18
+## [0.3.0] - 2025-02-19
 
 ### Added
 - **Text-based search** - Search clipboard history with keywords
@@ -150,13 +150,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 None - All changes are backward compatible with v0.1.x
 
 ### Migration Notes
-- Database automatically migrates from v0.1.x to v0.2.0 on first run
+- Database automatically migrates from v0.1.x to v0.3.0 on first run
 - Existing clipboard history is preserved
 - FTS5 index is built automatically from existing entries
 - No user action required
 
 ---
 
-[0.2.0]: https://github.com/yourusername/clipkeeper/releases/tag/v0.2.0
-[0.1.0]: https://github.com/yourusername/clipkeeper/releases/tag/v0.1.0
+[0.3.0]: https://github.com/mattpassman/clipkeeper/releases/tag/v0.3.0
+[0.1.0]: https://github.com/mattpassman/clipkeeper/releases/tag/v0.1.0
 
