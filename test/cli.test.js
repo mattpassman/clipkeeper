@@ -35,7 +35,7 @@ describe('CLI', () => {
   it('should have correct program metadata', () => {
     const cli = new CLI();
     assert.strictEqual(cli.program.name(), 'clipkeeper');
-    assert.strictEqual(cli.program.version(), '0.1.0');
+    assert.strictEqual(cli.program.version(), '0.2.0');
   });
 
   it('should have list command with correct options', () => {

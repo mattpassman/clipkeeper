@@ -29,9 +29,11 @@ export class ServiceManager {
    * Start the background service
    * Forks the process and detaches it
    * 
+   * @param {Object} options - Start options
+   * @param {boolean} options.monitor - Enable resource monitoring
    * @returns {Object} Result with success status and message
    */
-  start() {
+  start(options = {}) {
     try {
       // Check if service is already running
       if (this.isRunning()) {
@@ -51,11 +53,17 @@ export class ServiceManager {
       }
       const serviceScript = path.join(path.dirname(modulePath), 'service.js');
       
+      // Prepare environment variables
+      const env = { ...process.env };
+      if (options.monitor) {
+        env.CLIPKEEPER_MONITOR = 'true';
+      }
+      
       // Fork the process and detach
       const child = spawn(process.execPath, [serviceScript], {
         detached: true,
         stdio: 'ignore',
-        env: { ...process.env }
+        env
       });
 
       // Unref the child so parent can exit
@@ -64,11 +72,18 @@ export class ServiceManager {
       // Write PID to file
       this.writePid(child.pid);
 
-      this.logger.info('ServiceManager', 'Service started', { pid: child.pid });
+      this.logger.info('ServiceManager', 'Service started', { 
+        pid: child.pid,
+        monitor: options.monitor || false
+      });
+
+      const message = options.monitor 
+        ? `Service started with monitoring enabled (PID: ${child.pid})`
+        : `Service started successfully (PID: ${child.pid})`;
 
       return {
         success: true,
-        message: `Service started successfully (PID: ${child.pid})`,
+        message,
         pid: child.pid
       };
 

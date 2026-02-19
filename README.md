@@ -14,6 +14,7 @@ clipkeeper runs in the background and automatically captures everything you copy
 
 **Currently Available:**
 - **Background Monitoring** - Automatically captures all clipboard activity
+- **Resource Monitoring** - Track memory, CPU, and database metrics over time
 - **Local Storage** - All data stored in SQLite on your machine
 - **Content Classification** - Automatically detects content types (text, code, URLs, JSON, XML, markdown, etc.)
 - **Privacy Filtering** - Automatically blocks passwords, credit cards, API keys, SSH keys
@@ -111,8 +112,12 @@ clipkeeper stop
 | Command | Description |
 |---------|-------------|
 | `clipkeeper start` | Start the background monitoring service |
+| `clipkeeper start --monitor` | Start with resource monitoring enabled |
 | `clipkeeper stop` | Stop the background service |
 | `clipkeeper status` | Check service status with statistics |
+| `clipkeeper metrics [options]` | View resource usage metrics |
+| `  --limit <number>` | Number of metrics to show (default: 10) |
+| `  --clear` | Clear all metrics history |
 
 ### Clipboard History
 
@@ -195,6 +200,11 @@ clipkeeper is designed with privacy as a priority:
 - macOS: `~/Library/Application Support/clipkeeper/clipkeeper.log`
 - Linux: `~/.local/share/clipkeeper/clipkeeper.log`
 
+**Metrics (when monitoring is enabled):**
+- Windows: `%LOCALAPPDATA%\clipkeeper\metrics.log`
+- macOS: `~/Library/Application Support/clipkeeper/metrics.log`
+- Linux: `~/.local/share/clipkeeper/metrics.log`
+
 ## Examples
 
 ### Basic Usage
@@ -203,11 +213,18 @@ clipkeeper is designed with privacy as a priority:
 # Start monitoring
 clipkeeper start
 
+# Start with resource monitoring enabled
+clipkeeper start --monitor
+
 # Copy some text, code, URLs...
 # (clipkeeper captures everything automatically)
 
 # View your history
 clipkeeper list
+
+# View resource usage metrics (if monitoring is enabled)
+clipkeeper metrics
+clipkeeper metrics --limit 20
 
 # Search for specific content
 clipkeeper search "error"
@@ -264,6 +281,57 @@ clipkeeper config get retention.days
 # View all settings
 clipkeeper config show
 ```
+
+## Resource Monitoring
+
+When you start clipkeeper with the `--monitor` flag, it tracks resource usage and logs metrics every 60 seconds.
+
+### Viewing Metrics
+
+```bash
+# View last 10 samples (default)
+clipkeeper metrics
+
+# View last 50 samples
+clipkeeper metrics --limit 50
+
+# Clear metrics history
+clipkeeper metrics --clear
+```
+
+### Understanding the Metrics
+
+**Memory Metrics:**
+- **RSS (Resident Set Size)**: Total physical RAM used by clipkeeper (includes everything)
+- **Heap Used**: Memory used by JavaScript objects and data
+- **Heap Total**: Total heap memory allocated by V8 engine
+- **External**: Memory used by C++ objects (like database connections)
+- **Buffers**: Memory used for binary data buffers
+
+**CPU Metrics:**
+- **User**: Time spent executing your application code
+- **System**: Time spent in kernel operations (file I/O, database, etc.)
+- **Total**: Combined CPU time
+- **Usage %**: Percentage of uptime spent using CPU (lower is better)
+
+For a background service like clipkeeper, CPU usage should typically be very low (< 1-2%) since it's mostly idle, only working when clipboard changes occur.
+
+**Database Metrics:**
+- **File size**: Size of the SQLite database file in MB
+- **Total entries**: Number of clipboard entries stored
+- **Entries by type**: Breakdown by content type (text, code, url, etc.)
+
+**System Metrics:**
+- **Platform/Architecture**: Your operating system and CPU type
+- **Total/Free Memory**: System RAM (not just clipkeeper's usage)
+- **Load Average**: System load (Unix/Mac only) - 1, 5, and 15 minute averages
+
+### What's Normal?
+
+For typical usage:
+- **Memory (RSS)**: 30-60 MB is normal for a Node.js background service
+- **CPU Usage**: Should be < 1% most of the time (spikes briefly when clipboard changes)
+- **Database Size**: Grows over time; depends on retention settings and clipboard activity
 
 ## Troubleshooting
 
@@ -322,7 +390,7 @@ node src/cli.js start
 npm test
 ```
 
-Currently: **242 out of 244 tests passing** (2 skipped)
+Currently: **458 out of 459 tests passing** (1 skipped)
 
 ## Architecture
 
@@ -334,11 +402,19 @@ clipkeeper consists of several key components:
 - **ContentClassifier** - Identifies content types using heuristics
 - **ConfigurationManager** - Manages settings with validation
 - **ServiceManager** - Background service lifecycle management
+- **ResourceMonitor** - Tracks memory, CPU, and database metrics over time
 - **CLI** - Command-line interface using Commander.js
 
 ## Roadmap
 
-### v0.2.0 (Current Release)
+### v0.3.1 (Current Release)
+- Resource monitoring with metrics tracking
+- Database file size tracking
+- CPU usage metrics with percentage calculation
+- Interactive selection with cancel option
+- Enhanced metrics display
+
+### v0.3.0 (Previous Release)
 - Text-based search with keyword matching
 - Copy historical entries back to clipboard
 - Automated retention cleanup
@@ -347,13 +423,13 @@ clipkeeper consists of several key components:
 - Date filtering for search and list commands
 - Improved error messages
 
-### v0.3.0 (Planned)
+### v0.4.0 (Planned)
 - Semantic search with natural language queries
 - LLM embedding integration (OpenAI, Anthropic, Ollama)
 - Vector similarity search
 - Usage statistics and analytics
 
-### v0.4.0 (Planned)
+### v0.5.0 (Planned)
 - Sync across devices (optional)
 - GUI application
 - Plugin system

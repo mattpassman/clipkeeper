@@ -21,11 +21,13 @@ async function main() {
   logger.info('Service', 'clipkeeper background service starting', {
     pid: process.pid,
     nodeVersion: process.version,
-    platform: process.platform
+    platform: process.platform,
+    monitoring: process.env.CLIPKEEPER_MONITOR === 'true'
   });
 
   // Create and initialize application
   const app = new Application();
+  let resourceMonitor = null;
 
   try {
     await app.initialize();
@@ -34,6 +36,26 @@ async function main() {
     logger.info('Service', 'Background service initialized and started', {
       pid: process.pid
     });
+
+    // Start resource monitoring if enabled
+    if (process.env.CLIPKEEPER_MONITOR === 'true') {
+      const ResourceMonitor = (await import('./ResourceMonitor.js')).default;
+      const { ConfigurationManager } = await import('./ConfigurationManager.js');
+      const path = await import('path');
+      
+      const configManager = new ConfigurationManager();
+      const dataDir = configManager.get('storage.dataDir');
+      const metricsPath = path.join(dataDir, 'metrics.log');
+      
+      resourceMonitor = new ResourceMonitor(metricsPath, 60000); // Log every minute
+      resourceMonitor.setHistoryStore(app.historyStore);
+      resourceMonitor.start();
+      
+      logger.info('Service', 'Resource monitoring enabled', {
+        metricsPath,
+        interval: '60s'
+      });
+    }
 
   } catch (error) {
     logger.error('Service', 'Failed to initialize service', {
@@ -53,6 +75,12 @@ async function main() {
     });
 
     try {
+      // Stop resource monitoring if running
+      if (resourceMonitor) {
+        resourceMonitor.stop();
+        logger.info('Service', 'Resource monitoring stopped');
+      }
+      
       app.stop();
       logger.info('Service', 'Service stopped successfully');
       process.exit(0);

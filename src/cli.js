@@ -80,15 +80,19 @@ For more information, visit: https://github.com/yourusername/clipkeeper
     this.program
       .command('start')
       .description('Start the background clipboard monitoring service')
+      .option('--monitor', 'Enable resource usage monitoring')
       .addHelpText('after', `
 The start command launches clipkeeper as a background service that continuously
 monitors your system clipboard. All clipboard changes will be captured, classified,
 and stored locally for easy retrieval.
 
 The service will continue running until you stop it with 'clipkeeper stop'.
+
+Options:
+  --monitor    Enable resource usage monitoring (logs metrics every minute)
       `)
-      .action(() => {
-        this.handleStart();
+      .action((options) => {
+        this.handleStart(options);
       });
 
     this.program
@@ -111,6 +115,34 @@ along with uptime information, total entries stored, and last activity timestamp
       `)
       .action(() => {
         this.handleStatus();
+      });
+
+    this.program
+      .command('metrics')
+      .description('View resource usage metrics')
+      .option('-l, --limit <number>', 'Number of recent samples to show', '100')
+      .option('--clear', 'Clear metrics log file')
+      .addHelpText('after', `
+The metrics command displays resource usage statistics collected when the service
+is running with the --monitor flag.
+
+Metrics include:
+  - Memory usage (RSS, heap)
+  - CPU usage
+  - Database size and entry counts
+  - System information
+
+Options:
+  --limit <number>    Number of recent samples to display (default: 100)
+  --clear             Clear the metrics log file
+
+Examples:
+  $ clipkeeper metrics              Show recent metrics summary
+  $ clipkeeper metrics --limit 50   Show last 50 samples
+  $ clipkeeper metrics --clear      Clear metrics history
+      `)
+      .action((options) => {
+        this.handleMetrics(options);
       });
   }
 
@@ -288,16 +320,19 @@ Examples:
 
   // Command handlers
 
-  async handleStart() {
+  async handleStart(options = {}) {
     try {
       await this.initialize();
       
       console.log('Starting clipkeeper service...');
-      const result = this.serviceManager.start();
+      const result = this.serviceManager.start({ monitor: options.monitor });
       
       if (result.success) {
         console.log(`✓ ${result.message}`);
         console.log('\nThe service is now running in the background.');
+        if (options.monitor) {
+          console.log('Resource monitoring is enabled. View metrics with: clipkeeper metrics');
+        }
         console.log('Use "clipkeeper stop" to stop the service.');
       } else {
         console.error(`✗ ${result.message}`);
@@ -467,6 +502,114 @@ Examples:
       return `${minutes}m ${seconds % 60}s`;
     } else {
       return `${seconds}s`;
+    }
+  }
+
+  /**
+   * Handle metrics command
+   * Display resource usage metrics
+   * @param {Object} options - Command options
+   */
+  async handleMetrics(options = {}) {
+    try {
+      await this.initialize();
+      
+      const dataDir = this.configManager.get('storage.dataDir');
+      const metricsPath = path.join(dataDir, 'metrics.log');
+      
+      // Handle clear option
+      if (options.clear) {
+        const ResourceMonitor = (await import('./ResourceMonitor.js')).default;
+        ResourceMonitor.clearMetrics(metricsPath);
+        console.log('✓ Metrics log cleared');
+        return;
+      }
+      
+      // Read metrics
+      const ResourceMonitor = (await import('./ResourceMonitor.js')).default;
+      const limit = parseInt(options.limit, 10) || 100;
+      const metrics = ResourceMonitor.readMetrics(metricsPath, limit);
+      
+      if (metrics.length === 0) {
+        console.log('\nNo metrics data available.');
+        console.log('Start the service with --monitor flag to collect metrics:');
+        console.log('  clipkeeper start --monitor');
+        return;
+      }
+      
+      // Get summary
+      const summary = ResourceMonitor.getSummary(metrics);
+      const latestMetric = metrics[metrics.length - 1];
+      
+      // Display summary
+      console.log('\nResource Usage Metrics');
+      console.log('═'.repeat(60));
+      console.log(`\nPeriod: ${summary.period.start} to ${summary.period.end}`);
+      console.log(`Samples: ${summary.period.samples}`);
+      console.log(`Uptime: ${this._formatUptime(latestMetric.uptime)}`);
+      
+      console.log(`\nMemory (MB):`);
+      console.log(`  RSS (Resident Set Size):`);
+      console.log(`    Current: ${summary.memory.rss.current} MB`);
+      console.log(`    Min:     ${summary.memory.rss.min} MB`);
+      console.log(`    Max:     ${summary.memory.rss.max} MB`);
+      console.log(`    Avg:     ${summary.memory.rss.avg} MB`);
+      
+      console.log(`  Heap Used:`);
+      console.log(`    Current: ${summary.memory.heapUsed.current} MB`);
+      console.log(`    Min:     ${summary.memory.heapUsed.min} MB`);
+      console.log(`    Max:     ${summary.memory.heapUsed.max} MB`);
+      console.log(`    Avg:     ${summary.memory.heapUsed.avg} MB`);
+      
+      console.log(`  Heap Total: ${latestMetric.memory.heapTotal} MB`);
+      console.log(`  External:   ${latestMetric.memory.external} MB`);
+      console.log(`  Buffers:    ${latestMetric.memory.arrayBuffers} MB`);
+      
+      // Calculate CPU usage
+      const cpuUserSeconds = (latestMetric.cpu.user / 1000000).toFixed(2);
+      const cpuSystemSeconds = (latestMetric.cpu.system / 1000000).toFixed(2);
+      const cpuTotalSeconds = ((latestMetric.cpu.user + latestMetric.cpu.system) / 1000000).toFixed(2);
+      const uptimeSeconds = (latestMetric.uptime / 1000).toFixed(2);
+      const cpuPercentage = uptimeSeconds > 0 
+        ? ((cpuTotalSeconds / uptimeSeconds) * 100).toFixed(2)
+        : '0.00';
+      
+      console.log(`\nCPU Usage:`);
+      console.log(`  User:   ${cpuUserSeconds}s (time spent in application code)`);
+      console.log(`  System: ${cpuSystemSeconds}s (time spent in kernel operations)`);
+      console.log(`  Total:  ${cpuTotalSeconds}s`);
+      console.log(`  Usage:  ${cpuPercentage}% (of total uptime)`);
+      
+      console.log(`\nSystem:`);
+      console.log(`  Platform:      ${latestMetric.system.platform}`);
+      console.log(`  Architecture:  ${latestMetric.system.arch}`);
+      console.log(`  Total Memory:  ${latestMetric.system.totalMemory} MB`);
+      console.log(`  Free Memory:   ${latestMetric.system.freeMemory} MB`);
+      if (latestMetric.system.loadAverage && latestMetric.system.loadAverage.some(v => v > 0)) {
+        console.log(`  Load Average:  ${latestMetric.system.loadAverage.map(v => v.toFixed(2)).join(', ')}`);
+      }
+      
+      if (summary.database) {
+        console.log(`\nDatabase:`);
+        const dbSize = summary.database.sizeMB !== undefined ? summary.database.sizeMB : 'N/A';
+        console.log(`  File size:     ${dbSize} MB`);
+        console.log(`  Total entries: ${summary.database.totalEntries}`);
+        if (summary.database.entriesByType) {
+          console.log(`  Entries by type:`);
+          for (const [type, count] of Object.entries(summary.database.entriesByType)) {
+            console.log(`    ${type.padEnd(12)} ${count}`);
+          }
+        }
+      }
+      
+      console.log('\n' + '═'.repeat(60));
+      console.log(`\nMetrics file: ${metricsPath}`);
+      console.log(`Sampling interval: Every 60 seconds`);
+      console.log(`Use --limit to show more samples, or --clear to reset metrics`);
+      
+    } catch (error) {
+      console.error(`✗ Failed to read metrics: ${error.message}`);
+      process.exit(1);
     }
   }
 
@@ -1118,6 +1261,32 @@ Examples:
     }
     
     return preview;
+  }
+
+  /**
+   * Format uptime duration for display
+   * @private
+   * @param {number} uptimeMs - Uptime in milliseconds
+   * @returns {string} Formatted uptime
+   */
+  _formatUptime(uptimeMs) {
+    const seconds = Math.floor(uptimeMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) {
+      const remainingHours = hours % 24;
+      return `${days}d ${remainingHours}h`;
+    } else if (hours > 0) {
+      const remainingMinutes = minutes % 60;
+      return `${hours}h ${remainingMinutes}m`;
+    } else if (minutes > 0) {
+      const remainingSeconds = seconds % 60;
+      return `${minutes}m ${remainingSeconds}s`;
+    } else {
+      return `${seconds}s`;
+    }
   }
 
   /**
